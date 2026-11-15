@@ -60,14 +60,18 @@
 			aria-modal="true"
 			aria-label={title}
 			tabindex="-1"
-			transition:sheet
+			in:sheet
+			out:sheet
 			{@attach dragToDismiss({ onDismiss: close })}
 			class="mk-sheet relative flex w-full max-w-lg flex-col outline-none {tall ? 'h-(--sheet-h)' : 'max-h-(--sheet-h)'}"
 		>
-			<!-- phones: pull the sheet down by its handle (or its title) to close it; wider, it's a dialog -->
+			<!-- phones: pull the sheet down by its top bar (the handle, the title, anywhere but its buttons) to close it; wider, it's a dialog -->
 			<div class="mk-handle absolute inset-x-0 top-0 sm:hidden" data-drag-handle aria-hidden="true"></div>
-			<div class="flex items-center gap-2 px-5 pt-5 pb-3">
-				<h2 class="card-title min-w-0 flex-1 touch-none truncate" data-drag-handle={columns.current ? undefined : true}>{title}</h2>
+			<div
+				class="flex items-center gap-2 px-5 pt-5 pb-3 {columns.current ? '' : 'touch-none'}"
+				data-drag-handle={columns.current ? undefined : true}
+			>
+				<h2 class="card-title min-w-0 flex-1 truncate">{title}</h2>
 				{#if when}<span class="bh-when"><Icon name="calendar" size={14} />{when}</span>{/if}
 				<button class="bh-btn wn-press bh-btn--ghost bh-btn--sm bh-btn--icon -mr-2" aria-label="Close" onclick={close}>
 					<Icon name="close" size={20} />
