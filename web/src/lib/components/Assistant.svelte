@@ -9,14 +9,14 @@
 	import Peek from '../burrow/Peek.svelte';
 	import type { Mood } from '../burrow/art.js';
 	import type { Turn, TurnChange } from '../types.ts';
-	import { get, post, put } from '../api.ts';
+	import { get, post, put } from 'warren/web';
 	import { sendTurn, TOOL_LABEL } from '../agent.ts';
 	import { prepareImage } from '../photo.ts';
 	import { parseReply, type Span } from '../reply.ts';
 	import { dayLabel, kcal } from '../format.ts';
 	import { session, toasts } from '../state.svelte.ts';
 	import { tick } from 'svelte';
-	import { fly, scale } from '../motion.ts';
+	import { fly, haptic, scale } from 'warren/web';
 
 	let {
 		date,
@@ -195,6 +195,7 @@
 				} else if (ev.type === 'changed') {
 					onchanged();
 				} else if (ev.type === 'done') {
+					if (ev.turn.changes.length) haptic('success');
 					turns = [...turns, ev.turn];
 					pending = null;
 					onchanged();
@@ -222,9 +223,10 @@
 	async function undo(turn: Turn) {
 		try {
 			replace(await post<Turn>(`/api/agent/turns/${turn.id}/undo`));
+			haptic('select');
 			onchanged();
 		} catch (err) {
-			toasts.error((err as Error).message);
+			toasts.error(err);
 		}
 	}
 
@@ -232,7 +234,7 @@
 		try {
 			replace(await put<Turn>(`/api/agent/turns/${turn.id}/rating`, { rating, note }));
 		} catch (err) {
-			toasts.error((err as Error).message);
+			toasts.error(err);
 		}
 	}
 
@@ -316,7 +318,7 @@
 		<div class="relative shrink-0" data-photo-menu>
 			<button
 				type="button"
-				class="bh-btn bh-btn--ghost bh-btn--icon min-h-11 w-11"
+				class="bh-btn wn-press bh-btn--ghost bh-btn--icon min-h-11 w-11"
 				aria-label="Attach a photo"
 				aria-expanded={photoMenu}
 				onclick={attachPhoto}
@@ -328,10 +330,10 @@
 					class="absolute bottom-full left-0 z-10 mb-2 flex w-48 origin-bottom-left flex-col rounded-[var(--radius-sm)] border-2 border-outline bg-surface p-1 shadow-[var(--shadow-lift)]"
 					transition:scale={{ start: 0.85, duration: 160 }}
 				>
-					<button type="button" class="bh-btn bh-btn--ghost min-h-11 justify-start gap-2 px-3" onclick={() => choosePhoto(cameraInput)}>
+					<button type="button" class="bh-btn wn-press bh-btn--ghost min-h-11 justify-start gap-2 px-3" onclick={() => choosePhoto(cameraInput)}>
 						<Icon name="camera" size={20} />Take a photo
 					</button>
-					<button type="button" class="bh-btn bh-btn--ghost min-h-11 justify-start gap-2 px-3" onclick={() => choosePhoto(fileInput)}>
+					<button type="button" class="bh-btn wn-press bh-btn--ghost min-h-11 justify-start gap-2 px-3" onclick={() => choosePhoto(fileInput)}>
 						<Icon name="image" size={20} />Choose a photo
 					</button>
 				</div>
@@ -348,7 +350,7 @@
 			aria-label="Message Bao"
 			class="body max-h-[120px] min-h-11 min-w-0 flex-1 resize-none bg-transparent py-2.5 text-ink outline-none placeholder:text-ink-muted focus-visible:outline-none"
 		></textarea>
-		<button type="submit" class="bh-btn bh-btn--primary bh-btn--icon shrink-0 min-h-11 w-11" aria-label="Send" disabled={!canSend}>
+		<button type="submit" class="bh-btn wn-press bh-btn--primary bh-btn--icon shrink-0 min-h-11 w-11" aria-label="Send" disabled={!canSend}>
 			<Icon name="arrow-up" size={20} />
 		</button>
 	</form>
@@ -411,7 +413,7 @@
 	<div class="mt-1 ml-12">
 		<div class="flex items-center gap-1">
 			<button
-				class="bh-btn bh-btn--ghost bh-btn--sm bh-btn--icon {turn.rating === 1 ? 'text-accent' : 'text-ink-muted'}"
+				class="bh-btn wn-press bh-btn--ghost bh-btn--sm bh-btn--icon {turn.rating === 1 ? 'text-accent' : 'text-ink-muted'}"
 				aria-label="Good reply"
 				aria-pressed={turn.rating === 1}
 				onclick={() => rate(turn, turn.rating === 1 ? null : 1)}
@@ -419,7 +421,7 @@
 				<ThumbIcon size={18} filled={turn.rating === 1} />
 			</button>
 			<button
-				class="bh-btn bh-btn--ghost bh-btn--sm bh-btn--icon {turn.rating === -1 ? 'text-tomato-text' : 'text-ink-muted'}"
+				class="bh-btn wn-press bh-btn--ghost bh-btn--sm bh-btn--icon {turn.rating === -1 ? 'text-tomato-text' : 'text-ink-muted'}"
 				aria-label="Bad reply"
 				aria-pressed={turn.rating === -1}
 				onclick={() => rate(turn, turn.rating === -1 ? null : -1)}
@@ -473,7 +475,7 @@
 						{#if turn.undone}
 							<span class="small py-2 text-ink-muted">Undone</span>
 						{:else}
-							<button class="bh-btn bh-btn--ghost bh-btn--sm -mr-2" onclick={() => undo(turn)}>Undo</button>
+							<button class="bh-btn wn-press bh-btn--ghost bh-btn--sm -mr-2" onclick={() => undo(turn)}>Undo</button>
 						{/if}
 					</div>
 					<ul class="small divide-y divide-line {turn.undone ? 'line-through' : ''}">
@@ -516,7 +518,7 @@
 {#if inline}
 	<!-- desktop: Bao over a button in Today's left column -->
 	<Peek character="bao" mood={sending ? 'busy' : 'happy'} size={52} side="left" offset={22}>
-		<button class="bh-btn bh-btn--primary relative w-full gap-2" onclick={() => (open = true)}>
+		<button class="bh-btn wn-press bh-btn--primary relative w-full gap-2" onclick={() => (open = true)}>
 			<Icon name="chat" size={20} />Message Bao
 			{#if sending}<span class="absolute top-2 right-3 h-2.5 w-2.5 rounded-full border-2 border-outline bg-surface motion-safe:animate-pulse"></span>{/if}
 		</button>
@@ -524,12 +526,13 @@
 {:else}
 	<!-- phones and tablets: Bao peeks over a round button above the nav, on the right of the page column -->
 	<div
+		data-wn-keep="fab"
 		class="pointer-events-none fixed left-0 z-20 px-4"
 		style="right: var(--fold-right); bottom: calc(env(safe-area-inset-bottom) + var(--dock-h) + 12px)"
 	>
 		<div class="mx-auto flex max-w-lg justify-end">
 			<Peek character="bao" mood={sending ? 'busy' : 'happy'} size={44} side="left" offset={6}>
-				<button class="mk-fab pointer-events-auto relative" aria-label="Message Bao" onclick={() => (open = true)}>
+				<button class="mk-fab wn-press pointer-events-auto relative" aria-label="Message Bao" onclick={() => (open = true)}>
 					<Icon name="chat" size={24} />
 					{#if sending}<span class="absolute top-1 right-1 h-3 w-3 rounded-full border-2 border-outline bg-surface motion-safe:animate-pulse"></span>{/if}
 				</button>

@@ -10,7 +10,7 @@
 	const portion = $derived(entryPortion(entry.servings, entry.serving_label, entry.grams));
 </script>
 
-<button class="bh-row mk-row-btn" {onclick}>
+<button class="bh-row mk-row-btn wn-press" {onclick}>
 	<span class="bh-row__tile">
 		{#if entry.photo_id}
 			<img src="/api/files/{entry.photo_id}" alt="" loading="lazy" class="mk-tile-photo" />

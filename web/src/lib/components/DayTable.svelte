@@ -5,7 +5,7 @@
 	import type { HistoryDay, NutrientKey, Targets } from '../types.ts';
 	import { dayLabel, grams, kcal } from '../format.ts';
 	import { loggedAverage } from '../history.ts';
-	import { flip } from '../motion.ts';
+	import { flip } from 'warren/web';
 
 	/* Every day of the range with all its totals, sortable by any column. Days with nothing logged sort last. */
 	let { days, targets, today }: { days: HistoryDay[]; targets: Targets; today: string } = $props();

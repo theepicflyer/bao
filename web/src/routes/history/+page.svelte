@@ -6,15 +6,14 @@
 	import MacroDays from '#lib/components/MacroDays.svelte';
 	import MacroAmounts from '#lib/components/MacroAmounts.svelte';
 	import MacrosCard from '#lib/components/MacrosCard.svelte';
-	import Count from '#lib/components/Count.svelte';
+	import { Count } from 'warren/web';
 	import NutrientIcon, { type Nutrient } from '#lib/components/NutrientIcon.svelte';
 	import WeekdayCard from '#lib/components/WeekdayCard.svelte';
 	import Habitat from '#lib/burrow/Habitat.svelte';
 	import Icon from '#lib/burrow/Icon.svelte';
-	import Loader from '#lib/burrow/Loader.svelte';
 	import TrailPath from '#lib/burrow/TrailPath.svelte';
 	import TunnelRow from '#lib/burrow/TunnelRow.svelte';
-	import { get } from '#lib/api.ts';
+	import { loaded } from 'warren/web';
 	import { addDays, dayLabel, kcal, parseDate } from '#lib/format.ts';
 	import { loggedAverage, rollingKcal, spanLabel } from '#lib/history.ts';
 	import type { History, HistoryDay } from '#lib/types.ts';
@@ -29,27 +28,16 @@
 
 	let range = $state<Range>(14);
 	let end = $state('');
-	let data = $state<History | null>(null);
-	let loading = $state(false);
-	let seq = 0;
 	const today = $derived(session.me?.today ?? '');
 	const last = $derived(end || today);
 	const start = $derived(last ? addDays(last, -(range - 1)) : '');
 
-	$effect(() => {
-		const from = start;
-		const to = last;
-		if (!to) return;
-		const mine = ++seq;
-		loading = true;
-		get<History>(`/api/history?start=${addDays(from, -LEAD)}&end=${to}`)
-			.then((h) => {
-				if (mine === seq) data = h;
-			})
-			.finally(() => {
-				if (mine === seq) loading = false;
-			});
-	});
+	// A range seen before (going back from a day, say) shows at once and refreshes underneath; while another
+	// loads, the last one stays, faded.
+	const loadedHistory = loaded<History>(() => (last ? `/api/history?start=${addDays(start, -LEAD)}&end=${last}` : null));
+	const data = $derived(loadedHistory.data);
+	// the days on show are another range's, until this one comes (a refresh of the same range doesn't count)
+	const loading = $derived(!!data && (data.days[0]?.date !== addDays(start, -LEAD) || data.days.at(-1)?.date !== last));
 
 	const days = $derived(data ? data.days.slice(LEAD) : []);
 	const trend = $derived(data && range > 14 ? rollingKcal(data.days, LEAD) : undefined);
@@ -149,7 +137,7 @@
 	</section>
 {/snippet}
 
-<Habitat kind="burrow" mood={loading ? 'busy' : 'happy'} class="mk-top">
+<Habitat kind="burrow" mood={loading || !data ? 'busy' : 'happy'} class="mk-top">
 	<p class="small text-ink-muted">{current ? `Your last ${range} days` : spanLabel(start, last, today)}</p>
 	<h1 class="page-title">History</h1>
 </Habitat>
@@ -159,19 +147,19 @@
 	<div class="flex flex-wrap items-center gap-x-4 gap-y-3 pt-4 book:grid book:grid-cols-2 book:gap-x-9 lg:pt-6">
 		<div class="bh-seg" role="radiogroup" aria-label="Range">
 			{#each RANGES as r (r)}
-				<button role="radio" aria-checked={range === r} class="bh-seg__opt {range === r ? 'is-on' : ''}" onclick={() => (range = r)}>{r} days</button>
+				<button role="radio" aria-checked={range === r} class="bh-seg__opt wn-press {range === r ? 'is-on' : ''}" onclick={() => (range = r)}>{r} days</button>
 			{/each}
 		</div>
 		<div class="flex items-center gap-1.5">
-			<button class="bh-btn bh-btn--secondary bh-btn--sm bh-btn--icon" aria-label="Earlier {range} days" onclick={() => shift(-range)}>
+			<button class="bh-btn wn-press bh-btn--secondary bh-btn--sm bh-btn--icon" aria-label="Earlier {range} days" onclick={() => shift(-range)}>
 				<Icon name="chevron-left" size={18} />
 			</button>
-			<button class="bh-btn bh-btn--secondary bh-btn--sm bh-btn--icon" aria-label="Later {range} days" disabled={current} onclick={() => shift(range)}>
+			<button class="bh-btn wn-press bh-btn--secondary bh-btn--sm bh-btn--icon" aria-label="Later {range} days" disabled={current} onclick={() => shift(range)}>
 				<Icon name="chevron-right" size={18} />
 			</button>
 			{#if start}<span class="bh-when px-1"><Icon name="calendar" size={14} />{spanLabel(start, last, today)}</span>{/if}
 			{#if !current}
-				<button class="bh-btn bh-btn--ghost bh-btn--sm" onclick={() => (end = '')}>Latest</button>
+				<button class="bh-btn wn-press bh-btn--ghost bh-btn--sm" onclick={() => (end = '')}>Latest</button>
 			{/if}
 		</div>
 	</div>
@@ -234,7 +222,7 @@
 						last={i === newestFirst.length - 1}
 					>
 						{#snippet aside()}{#if d.entries}<NutrientIcon kind="energy" />{kcal(d.kcal)} kcal{/if}{/snippet}
-						<a href="/day/{d.date}" class="bh-card block py-3 no-underline hover:bg-surface-sunk">
+						<a href="/day/{d.date}" class="bh-card wn-press block py-3 no-underline hover:bg-surface-sunk">
 							{#if d.entries}
 								<span class="small block text-ink-muted"><MacroAmounts protein={d.protein_g} carbs={d.carb_g} fat={d.fat_g} unit=" g" /></span>
 								<span class="small mt-1 flex items-center gap-1 font-semibold text-sky-text">
@@ -251,6 +239,11 @@
 			</div>
 		</div>
 	{:else}
-		<div class="grid justify-items-center py-16"><Loader label="Digging up your history…" /></div>
+		<!-- the first load: the shape of the cards, pulsing -->
+		<div class="grid gap-9 py-9 sm:grid-cols-2" aria-busy="true" aria-label="Digging up your history">
+			<div class="mk-skeleton wn-skeleton h-28 sm:col-span-2"></div>
+			<div class="mk-skeleton wn-skeleton h-60"></div>
+			<div class="mk-skeleton wn-skeleton h-60"></div>
+		</div>
 	{/if}
 </div>

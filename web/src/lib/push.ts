@@ -1,4 +1,4 @@
-import { get, post } from './api.ts';
+import { get, post } from 'warren/web';
 
 /* Daily reminders on this device: a Web Push subscription the server sends to at the user's reminder time
    (src/bao/reminders.py). The service worker shows them and opens the day when one is tapped. */

@@ -7,9 +7,8 @@
 	import PortionPicker from '#lib/components/PortionPicker.svelte';
 	import Breadcrumbs from '#lib/burrow/Breadcrumbs.svelte';
 	import Icon from '#lib/burrow/Icon.svelte';
-	import Loader from '#lib/burrow/Loader.svelte';
 	import Peek from '#lib/burrow/Peek.svelte';
-	import { del, get, patch, post } from '#lib/api.ts';
+	import { del, haptic, loaded, patch, post } from 'warren/web';
 	import { draftFrom, draftPayload, emptyDraft } from '#lib/fooddraft.ts';
 	import { initialPortion, portionPayload } from '#lib/format.ts';
 	import type { Food, FoodDraft, NutrientKey, Portion } from '#lib/types.ts';
@@ -18,26 +17,32 @@
 	const id = $derived(page.params.id ?? '');
 	const isNew = $derived(id === 'new');
 
-	let food = $state<Food | null>(null);
+	// A food opened before shows at once (or as soon as the finger landed on its row, see Foods) and refreshes underneath.
+	const loadedFood = loaded<Food>(() => (isNew ? null : `/api/foods/${id}`));
+	const food = $derived(loadedFood.data && String(loadedFood.data.id) === id ? loadedFood.data : null);
 	let draft = $state<FoodDraft>(emptyDraft());
 	let portion = $state<Portion>({ unit: 'g', count: 1, grams: 100 });
 	let busy = $state(false);
-	let error = $state<string | null>(null);
+	// The form starts from the food. A refresh underneath (the cached food was out of date) starts it again,
+	// unless something has been typed since.
+	let startedFor = '';
+	let startedFrom = '';
 
 	$effect(() => {
-		const current = id;
-		if (current === 'new') {
-			food = null;
-			draft = emptyDraft();
+		if (isNew) {
+			if (startedFor !== 'new') draft = emptyDraft();
+			startedFor = 'new';
 			return;
 		}
-		get<Food>(`/api/foods/${current}`)
-			.then((f) => {
-				food = f;
-				draft = draftFrom(f);
-				portion = initialPortion(f);
-			})
-			.catch((err) => (error = (err as Error).message));
+		if (!food) return;
+		const fresh = JSON.stringify(draftFrom(food));
+		const untouched = JSON.stringify(draft) === startedFrom;
+		if (startedFor !== id || (fresh !== startedFrom && untouched)) {
+			startedFor = id;
+			startedFrom = fresh;
+			draft = draftFrom(food);
+			portion = initialPortion(food);
+		}
 	});
 
 	const ROWS: { key: NutrientKey; label: string; unit: string }[] = [
@@ -65,9 +70,10 @@
 				await patch<Food>(`/api/foods/${id}`, body);
 				toasts.show('Saved');
 			}
+			haptic('success');
 			await goto('/foods');
 		} catch (err) {
-			toasts.error((err as Error).message);
+			toasts.error(err);
 		} finally {
 			busy = false;
 		}
@@ -78,10 +84,11 @@
 		busy = true;
 		try {
 			await del(`/api/foods/${food.id}`);
+			haptic('warning');
 			toasts.show(`Deleted ${food.name}`, { character: 'kayu', mood: 'happy' });
 			await goto('/foods');
 		} catch (err) {
-			toasts.error((err as Error).message);
+			toasts.error(err);
 		} finally {
 			busy = false;
 		}
@@ -95,9 +102,10 @@
 				food_id: food.id,
 				...(p.grams != null ? { grams: p.grams } : { servings: p.servings, serving_label: p.serving })
 			});
+			haptic('success');
 			toasts.show(`Pinned ${food.name} to quick add`);
 		} catch (err) {
-			toasts.error((err as Error).message);
+			toasts.error(err);
 		}
 	}
 </script>
@@ -111,8 +119,8 @@
 		<h1 class="page-title mt-2">{isNew ? 'New household food' : (food?.name ?? '')}</h1>
 	</header>
 
-	{#if error}
-		<p class="py-8 text-center font-semibold text-tomato-text">Couldn't load this food: {error}</p>
+	{#if loadedFood.failed && !food}
+		<p class="py-8 text-center font-semibold text-tomato-text">Couldn't load this food.</p>
 	{:else if isNew || food?.editable}
 		<!-- editing is Kayu's job -->
 		<Peek character="kayu" mood={busy ? 'busy' : 'happy'} size={72} offset={20}>
@@ -120,10 +128,10 @@
 		</Peek>
 		<div class="mt-4 flex items-center gap-1">
 			{#if !isNew}
-				<button class="bh-btn bh-btn--ghost mk-danger -ml-3" onclick={remove} disabled={busy}><Icon name="trash" size={18} />Delete</button>
-				<button class="bh-btn bh-btn--ghost" onclick={pin} disabled={busy}><Icon name="pin" size={18} />Pin</button>
+				<button class="bh-btn wn-press bh-btn--ghost mk-danger -ml-3" onclick={remove} disabled={busy}><Icon name="trash" size={18} />Delete</button>
+				<button class="bh-btn wn-press bh-btn--ghost" onclick={pin} disabled={busy}><Icon name="pin" size={18} />Pin</button>
 			{/if}
-			<button class="bh-btn bh-btn--primary ml-auto min-w-32" onclick={save} disabled={busy}>Save food</button>
+			<button class="bh-btn wn-press bh-btn--primary ml-auto min-w-32" onclick={save} disabled={busy}>Save food</button>
 		</div>
 	{:else if food}
 		<div class="mk-stagger space-y-4">
@@ -154,11 +162,15 @@
 			<section class="bh-card" aria-labelledby="pin-title">
 				<header class="bh-card__head"><h2 id="pin-title" class="bh-card__title">Pin to quick add</h2></header>
 				<PortionPicker {food} bind:value={portion} />
-				<button class="bh-btn bh-btn--primary mt-4 w-full" onclick={pin}><Icon name="pin" size={18} />Pin this portion</button>
+				<button class="bh-btn wn-press bh-btn--primary mt-4 w-full" onclick={pin}><Icon name="pin" size={18} />Pin this portion</button>
 			</section>
 			<p class="small text-ink-muted">Reference data is read-only. To change it, create a household food instead.</p>
 		</div>
 	{:else}
-		<div class="grid justify-items-center py-16"><Loader kind="crumbs" /></div>
+		<!-- the first load: the shape of the food's card, pulsing -->
+		<div class="grid gap-4" aria-busy="true" aria-label="Loading the food">
+			<div class="mk-skeleton mk-skeleton--line wn-skeleton w-1/3"></div>
+			<div class="mk-skeleton wn-skeleton h-80"></div>
+		</div>
 	{/if}
 </div>

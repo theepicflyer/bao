@@ -5,7 +5,7 @@
 	import Field from '../burrow/Field.svelte';
 	import Icon from '../burrow/Icon.svelte';
 	import { MEALS, MEAL_LABEL, type Entry, type Food, type Meal, type Portion } from '../types.ts';
-	import { del, get, patch, post } from '../api.ts';
+	import { del, get, haptic, patch, post } from 'warren/web';
 	import { initialPortion, portionPayload } from '../format.ts';
 	import { toasts } from '../state.svelte.ts';
 
@@ -43,7 +43,7 @@
 					portion = initialPortion(f, e.servings, e.serving_label, e.grams);
 					startPortion = JSON.stringify(portion);
 				})
-				.catch((err) => toasts.error(err.message));
+				.catch((err) => toasts.error(err));
 		}
 	});
 
@@ -75,10 +75,11 @@
 		busy = true;
 		try {
 			await patch(`/api/entries/${entry.id}`, body);
+			haptic('success');
 			open = false;
 			onchanged();
 		} catch (err) {
-			toasts.error((err as Error).message);
+			toasts.error(err);
 		} finally {
 			busy = false;
 		}
@@ -90,6 +91,7 @@
 		busy = true;
 		try {
 			await del(`/api/entries/${e.id}`);
+			haptic('warning');
 			open = false;
 			onchanged();
 			toasts.show(`Removed ${e.name} from ${MEAL_LABEL[e.meal].toLowerCase()}`, {
@@ -114,7 +116,7 @@
 				}
 			});
 		} catch (err) {
-			toasts.error((err as Error).message);
+			toasts.error(err);
 		} finally {
 			busy = false;
 		}
@@ -124,9 +126,10 @@
 		if (!food) return;
 		try {
 			await post('/api/pins', { food_id: food.id, ...pinPortion() });
+			haptic('success');
 			toasts.show(`Pinned ${food.name} to quick add`);
 		} catch (err) {
-			toasts.error((err as Error).message);
+			toasts.error(err);
 		}
 	}
 
@@ -171,7 +174,7 @@
 				<span class="mk-section-label">Meal</span>
 				<div class="bh-seg" role="radiogroup" aria-label="Meal">
 					{#each MEALS as m (m)}
-						<button role="radio" aria-checked={meal === m} class="bh-seg__opt {meal === m ? 'is-on' : ''}" onclick={() => (meal = m)}>{MEAL_LABEL[m]}</button>
+						<button role="radio" aria-checked={meal === m} class="bh-seg__opt wn-press {meal === m ? 'is-on' : ''}" onclick={() => (meal = m)}>{MEAL_LABEL[m]}</button>
 					{/each}
 				</div>
 			</div>
@@ -182,11 +185,11 @@
 	{/if}
 	{#snippet footer()}
 		<div class="flex items-center gap-1">
-			<button class="bh-btn bh-btn--ghost mk-danger -ml-3" onclick={remove} disabled={busy}><Icon name="trash" size={18} />Delete</button>
+			<button class="bh-btn wn-press bh-btn--ghost mk-danger -ml-3" onclick={remove} disabled={busy}><Icon name="trash" size={18} />Delete</button>
 			{#if food}
-				<button class="bh-btn bh-btn--ghost" onclick={pin} disabled={busy}><Icon name="pin" size={18} />Pin</button>
+				<button class="bh-btn wn-press bh-btn--ghost" onclick={pin} disabled={busy}><Icon name="pin" size={18} />Pin</button>
 			{/if}
-			<button class="bh-btn bh-btn--primary ml-auto min-w-28" onclick={save} disabled={busy}>Save</button>
+			<button class="bh-btn wn-press bh-btn--primary ml-auto min-w-28" onclick={save} disabled={busy}>Save</button>
 		</div>
 	{/snippet}
 </Sheet>

@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import Field from '#lib/burrow/Field.svelte';
 	import World from '#lib/burrow/World.svelte';
-	import { get, post } from '#lib/api.ts';
+	import { get, post } from 'warren/web';
 	import { session, toasts } from '#lib/state.svelte.ts';
 	import { onMount } from 'svelte';
 
@@ -22,7 +22,7 @@
 			const me = await session.load(true);
 			await goto(me ? `/day/${me.today}` : '/');
 		} catch (err) {
-			toasts.error((err as Error).message);
+			toasts.error(err);
 		} finally {
 			busy = false;
 		}
@@ -40,14 +40,14 @@
 
 	<div class="mt-8 space-y-3">
 		{#if config?.oidc}
-			<a href="/auth/login" data-sveltekit-reload class="bh-btn bh-btn--primary w-full">Sign in with Pocket ID</a>
+			<a href="/auth/login" data-sveltekit-reload class="bh-btn wn-press bh-btn--primary w-full">Sign in with Pocket ID</a>
 		{/if}
 		{#if config?.dev}
 			<div class="bh-card space-y-3">
 				<p class="label text-ink-muted">Development sign-in</p>
 				<div class="flex gap-2">
-					<button class="bh-btn bh-btn--secondary flex-1" disabled={busy} onclick={() => devLogin('Alice')}>Alice</button>
-					<button class="bh-btn bh-btn--secondary flex-1" disabled={busy} onclick={() => devLogin('Bob')}>Bob</button>
+					<button class="bh-btn wn-press bh-btn--secondary flex-1" disabled={busy} onclick={() => devLogin('Alice')}>Alice</button>
+					<button class="bh-btn wn-press bh-btn--secondary flex-1" disabled={busy} onclick={() => devLogin('Bob')}>Bob</button>
 				</div>
 				<form
 					class="flex items-end gap-2"
@@ -57,7 +57,7 @@
 					}}
 				>
 					<Field label="Or any name" class="min-w-0 flex-1" bind:value={name} placeholder="e.g. Sam" />
-					<button class="bh-btn bh-btn--primary" disabled={busy || !name.trim()}>Go</button>
+					<button class="bh-btn wn-press bh-btn--primary" disabled={busy || !name.trim()}>Go</button>
 				</form>
 			</div>
 		{/if}

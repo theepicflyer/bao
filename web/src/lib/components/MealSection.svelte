@@ -1,14 +1,14 @@
 <script lang="ts">
 	import EntryRow from './EntryRow.svelte';
 	import NutrientIcon from './NutrientIcon.svelte';
-	import Count from './Count.svelte';
+	import { Count } from 'warren/web';
 	import Icon from '../burrow/Icon.svelte';
 	import Trace from '../burrow/Trace.svelte';
 	import type { Entry, Meal, Nutrients } from '../types.ts';
 	import { MEAL_LABEL } from '../types.ts';
 	import { kcal } from '../format.ts';
 	import { wide } from '../state.svelte.ts';
-	import { fade, flip } from '../motion.ts';
+	import { flip, row } from 'warren/web';
 
 	let {
 		meal,
@@ -40,19 +40,19 @@
 				<h2 class="bh-card__title">{label}</h2>
 				<span class="bh-tag"><NutrientIcon kind="energy" /><Count value={subtotal.kcal} format={kcal} /> kcal</span>
 			</header>
-			<!-- a new entry rises into place (layout.css), the others make room; a removed one fades -->
+			<!-- a new entry opens its row and rises into place (layout.css); a removed one closes its row; the others move -->
 			<ul class="mk-rows mk-stagger">
 				{#each entries as entry (entry.id)}
-					<li animate:flip out:fade={{ duration: 150 }}><EntryRow {entry} onclick={() => onedit(entry)} /></li>
+					<li animate:flip transition:row><EntryRow {entry} onclick={() => onedit(entry)} /></li>
 				{/each}
 			</ul>
 			<div class="mk-card-actions">
 				{#if entries.some((e) => e.food_id != null)}
-					<button class="bh-btn bh-btn--ghost bh-btn--sm" aria-label="Save {label} as a quick meal" onclick={() => onsave(meal)}>
+					<button class="bh-btn wn-press bh-btn--ghost bh-btn--sm" aria-label="Save {label} as a quick meal" onclick={() => onsave(meal)}>
 						<Icon name="bookmark" size={18} />Save meal
 					</button>
 				{/if}
-				<button class="bh-btn bh-btn--secondary bh-btn--sm" aria-label="Add to {label}" onclick={() => onadd(meal)}>
+				<button class="bh-btn wn-press bh-btn--secondary bh-btn--sm" aria-label="Add to {label}" onclick={() => onadd(meal)}>
 					<Icon name="plus" size={18} />Add
 				</button>
 			</div>
@@ -66,7 +66,7 @@
 				<h2 class="bh-card__title">{label}</h2>
 				<p class="small text-ink-muted">{next ? `Up next. Tell Bao${wide.current ? '' : ' below'}, or add food.` : 'Nothing logged'}</p>
 			</div>
-			<button class="bh-btn {next ? 'bh-btn--secondary' : 'bh-btn--ghost'} bh-btn--sm" aria-label="Add to {label}" onclick={() => onadd(meal)}>
+			<button class="bh-btn wn-press {next ? 'bh-btn--secondary' : 'bh-btn--ghost'} bh-btn--sm" aria-label="Add to {label}" onclick={() => onadd(meal)}>
 				<Icon name="plus" size={18} />Add
 			</button>
 		</div>
