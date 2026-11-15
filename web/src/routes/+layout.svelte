@@ -73,7 +73,7 @@
 {#if isLogin}
 	{@render children()}
 {:else if ready && session.me}
-	<div class="lg:flex">
+	<div class="overflow-x-clip lg:flex">
 		<SideNav />
 		<!-- phones: one column with room underneath for the floating nav and Bao peeking over it;
 		     unfolded foldables and tablets: the full width, for the screens' columns; desktop: a wider column beside the rail.
