@@ -11,21 +11,20 @@
 	import Field from '#lib/burrow/Field.svelte';
 	import Habitat from '#lib/burrow/Habitat.svelte';
 	import Icon from '#lib/burrow/Icon.svelte';
-	import Loader from '#lib/burrow/Loader.svelte';
 	import TrailPath from '#lib/burrow/TrailPath.svelte';
 	import type { Mood } from '#lib/burrow/art.js';
-	import { get, post } from '#lib/api.ts';
+	import { changes, fly, haptic, loaded, post } from 'warren/web';
 	import { addDays, dayLabel, daySubtitle, dayTitle } from '#lib/format.ts';
 	import { MEALS, MEAL_LABEL, type Day, type Entry, type Meal } from '#lib/types.ts';
 	import { columns, session, toasts, wide } from '#lib/state.svelte.ts';
-	import { fly } from '#lib/motion.ts';
 
 	const date = $derived(page.params.date ?? '');
 	const today = $derived(session.me?.today ?? date);
 	const valid = $derived(/^\d{4}-\d{2}-\d{2}$/.test(date));
 
-	let day = $state<Day | null>(null);
-	let loadError = $state<string | null>(null);
+	// A day seen before shows at once and refreshes underneath; while another loads, the last one stays, faded.
+	const loadedDay = loaded<Day>(() => (valid ? `/api/days/${date}` : null));
+	const day = $derived(loadedDay.data);
 	let editing = $state<Entry | null>(null);
 	let editOpen = $state(false);
 	let addMeal = $state<Meal>('breakfast');
@@ -36,31 +35,15 @@
 	let dateInput: HTMLInputElement | undefined = $state();
 	// which way the last day change went, so the new day slides in from that side
 	let dir = $state(1);
-	let seq = 0;
 
-	async function load(d: string) {
-		const mine = ++seq;
-		try {
-			const res = await get<Day>(`/api/days/${d}`);
-			if (mine === seq) {
-				if (day && res.date !== day.date) dir = res.date > day.date ? 1 : -1;
-				day = res;
-				loadError = null;
-			}
-		} catch (err) {
-			if (mine === seq) loadError = (err as Error).message;
-		}
-	}
-
-	$effect(() => {
-		if (valid) load(date);
-	});
-
+	// Something was logged, changed or undone: this day (and anything else loaded) loads again.
 	function refresh() {
-		load(date);
+		changes.changed();
 	}
 
 	function go(d: string) {
+		if (d === date) return;
+		dir = d > date ? 1 : -1;
 		goto(`/day/${d}`, { replace: true, reset: false });
 	}
 
@@ -98,10 +81,11 @@
 		const ids = day.meals[saveMeal].filter((e) => e.food_id != null).map((e) => e.id);
 		try {
 			await post('/api/saved-meals', { name: saveName.trim(), entry_ids: ids });
+			haptic('success');
 			toasts.show(`Saved "${saveName.trim()}" to quick add`);
 			saveOpen = false;
 		} catch (err) {
-			toasts.error((err as Error).message);
+			toasts.error(err);
 		}
 	}
 </script>
@@ -115,10 +99,10 @@
 		<p class="small text-ink-muted">{daySubtitle(date, today)}</p>
 		<h1 class="page-title">{dayTitle(date, today)}</h1>
 		<div class="mt-2 flex items-center gap-1.5">
-			<button class="bh-btn bh-btn--secondary bh-btn--sm bh-btn--icon" aria-label="Previous day" onclick={() => go(addDays(date, -1))}>
+			<button class="bh-btn wn-press bh-btn--secondary bh-btn--sm bh-btn--icon" aria-label="Previous day" onclick={() => go(addDays(date, -1))}>
 				<Icon name="chevron-left" size={18} />
 			</button>
-			<button class="bh-btn bh-btn--secondary bh-btn--sm bh-btn--icon relative" onclick={openDatePicker} aria-label="Pick a date">
+			<button class="bh-btn wn-press bh-btn--secondary bh-btn--sm bh-btn--icon relative" onclick={openDatePicker} aria-label="Pick a date">
 				<Icon name="calendar" size={18} />
 				<input
 					bind:this={dateInput}
@@ -133,11 +117,11 @@
 					}}
 				/>
 			</button>
-			<button class="bh-btn bh-btn--secondary bh-btn--sm bh-btn--icon" aria-label="Next day" onclick={() => go(addDays(date, 1))}>
+			<button class="bh-btn wn-press bh-btn--secondary bh-btn--sm bh-btn--icon" aria-label="Next day" onclick={() => go(addDays(date, 1))}>
 				<Icon name="chevron-right" size={18} />
 			</button>
 			{#if date !== today}
-				<button class="bh-btn bh-btn--ghost bh-btn--sm" onclick={() => go(today)}>Today</button>
+				<button class="bh-btn wn-press bh-btn--ghost bh-btn--sm" onclick={() => go(today)}>Today</button>
 			{/if}
 		</div>
 	</Habitat>
@@ -167,8 +151,8 @@
 	{/snippet}
 
 	<div class="mk-page">
-		{#if loadError && !day}
-			<p class="py-10 text-center font-semibold text-tomato-text">Couldn't load this day: {loadError}</p>
+		{#if loadedDay.failed && !day}
+			<p class="py-10 text-center font-semibold text-tomato-text">Couldn't load this day.</p>
 		{:else if day && columns.current}
 			<!-- unfolded and desktop: the day at a glance (and on desktop Bao's button) on the left, the meals on the right;
 			     halves until the rail comes in, so a fold runs between them, with room under them for the message button -->
@@ -215,7 +199,16 @@
 				<div class="h-16"></div>
 			</div>
 		{:else}
-			<div class="grid justify-items-center py-16"><Loader kind="crumbs" label="Fetching your day…" /></div>
+			<!-- the first load: the day's shape, pulsing -->
+			<div class="grid gap-9 pt-6 pb-16 sm:grid-cols-2 sm:gap-8" aria-busy="true" aria-label="Fetching your day">
+				<div class="grid justify-items-center gap-6">
+					<div class="mk-skeleton wn-skeleton aspect-square w-48 rounded-full"></div>
+					<div class="mk-skeleton wn-skeleton h-36 w-full"></div>
+				</div>
+				<div class="grid gap-9">
+					{#each MEALS as meal (meal)}<div class="mk-skeleton wn-skeleton h-20"></div>{/each}
+				</div>
+			</div>
 		{/if}
 	</div>
 
@@ -232,7 +225,7 @@
 			<Field label="Name" bind:value={saveName} />
 		</div>
 		{#snippet footer()}
-			<button class="bh-btn bh-btn--primary w-full" disabled={!saveName.trim()} onclick={confirmSave}>Save meal</button>
+			<button class="bh-btn wn-press bh-btn--primary w-full" disabled={!saveName.trim()} onclick={confirmSave}>Save meal</button>
 		{/snippet}
 	</Sheet>
 {/if}

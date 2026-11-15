@@ -4,7 +4,7 @@
 	import Habitat from '#lib/burrow/Habitat.svelte';
 	import Icon from '#lib/burrow/Icon.svelte';
 	import TrailPath from '#lib/burrow/TrailPath.svelte';
-	import { ApiError, get, patch, post } from '#lib/api.ts';
+	import { ApiError, forgetData, haptic, loaded, patch, post } from 'warren/web';
 	import { clock, dayLabel, isoDate } from '#lib/format.ts';
 	import { pushSupport, refresh, sendTest, turnOff, turnOn, type PushSupport } from '#lib/push.ts';
 	import type { Me, Usage } from '#lib/types.ts';
@@ -25,8 +25,11 @@
 		carb_g: session.me?.targets.carb_g ?? null,
 		fat_g: session.me?.targets.fat_g ?? null
 	});
-	let usage = $state<Usage | null>(null);
-	let manifest = $state<Manifest | null>(null);
+	// shown at once when Settings was open before, refreshed underneath
+	const loadedUsage = loaded<Usage>(() => '/api/usage');
+	const usage = $derived(loadedUsage.data);
+	const about = loaded<{ reference?: Manifest }>(() => '/api/about');
+	const manifest = $derived(about.data ? (about.data.reference ?? {}) : about.failed ? {} : null);
 	let busy = $state(false);
 
 	// the daily reminder: one time for the account, turned on per device
@@ -44,10 +47,6 @@
 				.then((sub) => (device = sub))
 				.catch(() => {});
 		}
-		get<Usage>('/api/usage').then((u) => (usage = u)).catch(() => {});
-		get<{ reference: Manifest }>('/api/about')
-			.then((a) => (manifest = a.reference ?? {}))
-			.catch(() => (manifest = {}));
 	});
 
 	const macroKcal = $derived(
@@ -70,9 +69,10 @@
 					fat_g: num(targets.fat_g)
 				}
 			});
+			haptic('success');
 			toasts.show('Targets saved', { character: 'kayu' });
 		} catch (err) {
-			toasts.error((err as Error).message);
+			toasts.error(err);
 		} finally {
 			busy = false;
 		}
@@ -85,9 +85,10 @@
 		}
 		try {
 			session.me = await patch<Me>('/api/me', { reminder_time: reminderTime });
+			haptic('success');
 			toasts.show(`Reminder set for ${clock(reminderTime)}`, { character: 'kayu' });
 		} catch (err) {
-			toasts.error((err as Error).message);
+			toasts.error(err);
 		}
 	}
 
@@ -96,6 +97,7 @@
 		try {
 			device = await turnOn();
 			permission = Notification.permission;
+			if (device) haptic('success');
 			if (device) toasts.show(`Reminders on. The next one is at ${clock(reminderTime)}.`, { character: 'kayu' });
 		} catch (err) {
 			toasts.error(`Couldn't turn on reminders: ${(err as Error).message}`);
@@ -111,7 +113,7 @@
 			device = null;
 			toasts.show('Reminders off for this device', { character: 'kayu' });
 		} catch (err) {
-			toasts.error((err as Error).message);
+			toasts.error(err);
 		} finally {
 			pushBusy = false;
 		}
@@ -124,7 +126,7 @@
 			await sendTest(device);
 			toasts.show('Sent. It should show up in a moment.', { character: 'kayu' });
 		} catch (err) {
-			toasts.error((err as Error).message);
+			toasts.error(err);
 			// the server drops a device the push service has forgotten
 			if (err instanceof ApiError && err.status === 410) device = null;
 		} finally {
@@ -137,6 +139,8 @@
 		await turnOff().catch(() => {});
 		await post('/api/auth/logout');
 		session.me = null;
+		// nothing loaded for this person stays for whoever signs in next
+		forgetData();
 		await goto('/login');
 	}
 
@@ -168,7 +172,7 @@
 		{#if macroKcal > 0}
 			<p class="small text-ink-muted">These macros add up to about {Math.round(macroKcal).toLocaleString('en-SG')} kcal.</p>
 		{/if}
-		<button class="bh-btn bh-btn--primary w-full" onclick={save} disabled={busy}>Save targets</button>
+		<button class="bh-btn wn-press bh-btn--primary w-full" onclick={save} disabled={busy}>Save targets</button>
 	</section>
 {/snippet}
 
@@ -189,12 +193,12 @@
 			<div>
 				<p class="small flex items-center gap-1.5 text-ink"><Icon name="check" size={18} />On for this device</p>
 				<div class="mk-card-actions">
-					<button class="bh-btn bh-btn--ghost bh-btn--sm" onclick={test} disabled={pushBusy}>Send a test</button>
-					<button class="bh-btn bh-btn--secondary bh-btn--sm" onclick={remindersOff} disabled={pushBusy}>Turn off</button>
+					<button class="bh-btn wn-press bh-btn--ghost bh-btn--sm" onclick={test} disabled={pushBusy}>Send a test</button>
+					<button class="bh-btn wn-press bh-btn--secondary bh-btn--sm" onclick={remindersOff} disabled={pushBusy}>Turn off</button>
 				</div>
 			</div>
 		{:else}
-			<button class="bh-btn bh-btn--secondary w-full" onclick={remindersOn} disabled={pushBusy}>
+			<button class="bh-btn wn-press bh-btn--secondary w-full" onclick={remindersOn} disabled={pushBusy}>
 				<Icon name="bell" size={18} />Turn on for this device
 			</button>
 		{/if}
@@ -250,7 +254,7 @@
 {/snippet}
 
 {#snippet signOut()}
-	<button class="bh-btn bh-btn--secondary w-full" onclick={logout}><Icon name="sign-out" size={18} />Sign out</button>
+	<button class="bh-btn wn-press bh-btn--secondary w-full" onclick={logout}><Icon name="sign-out" size={18} />Sign out</button>
 {/snippet}
 
 <div class="mk-page">

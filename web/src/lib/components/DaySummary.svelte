@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Ring from '../burrow/Ring.svelte';
-	import Count from './Count.svelte';
+	import { Count } from 'warren/web';
 	import type { Nutrients, Targets } from '../types.ts';
 	import { kcal } from '../format.ts';
 
@@ -27,7 +27,7 @@
 		{#if target != null}
 			<span class="bh-tag bh-tag--lg"><Count value={eaten} format={kcal} /> of {kcal(target)} kcal eaten</span>
 		{:else}
-			<a class="bh-btn bh-btn--secondary bh-btn--sm" href="/settings">Set a daily target</a>
+			<a class="bh-btn wn-press bh-btn--secondary bh-btn--sm" href="/settings">Set a daily target</a>
 		{/if}
 	</div>
 </div>

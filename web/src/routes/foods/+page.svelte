@@ -6,28 +6,19 @@
 	import Icon from '#lib/burrow/Icon.svelte';
 	import Loader from '#lib/burrow/Loader.svelte';
 	import TrailPath from '#lib/burrow/TrailPath.svelte';
-	import { get } from '#lib/api.ts';
+	import { flip, get, loaded, preload } from 'warren/web';
 	import { servingKcal } from '#lib/format.ts';
 	import type { Food } from '#lib/types.ts';
-	import { columns, toasts } from '#lib/state.svelte.ts';
-	import { flip } from '#lib/motion.ts';
-	import { onMount } from 'svelte';
+	import { columns } from '#lib/state.svelte.ts';
 
-	let ours = $state<Food[] | null>(null);
+	// the household's foods: at once when Foods was open before, refreshed underneath
+	const loadedOurs = loaded<{ foods: Food[] }>(() => '/api/foods/ours');
+	const ours = $derived(loadedOurs.data?.foods ?? (loadedOurs.failed ? [] : null));
 	let query = $state('');
 	let results = $state<Food[]>([]);
 	let searching = $state(false);
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	let seq = 0;
-
-	onMount(async () => {
-		try {
-			ours = (await get<{ foods: Food[] }>('/api/foods/ours')).foods;
-		} catch (err) {
-			toasts.error((err as Error).message);
-			ours = [];
-		}
-	});
 
 	function onInput() {
 		clearTimeout(timer);
@@ -52,7 +43,8 @@
 <svelte:head><title>Foods · Bao</title></svelte:head>
 
 {#snippet foodRow(food: Food)}
-	<a href="/foods/{food.id}" class="bh-row mk-row-btn">
+	<!-- a finger on the row starts loading the food, so it's there when the screen slides in -->
+	<a href="/foods/{food.id}" class="bh-row mk-row-btn wn-press" onpointerdown={() => preload(`/api/foods/${food.id}`)}>
 		<span class="bh-row__text">
 			<span class="bh-row__title">{food.name}</span>
 			<span class="bh-row__sub">
@@ -69,7 +61,7 @@
 <Habitat kind="meadow" class="mk-top">
 	<p class="small text-ink-muted">Ours, SG FoodID and USDA</p>
 	<h1 class="page-title">Foods</h1>
-	<a href="/foods/new" class="bh-btn bh-btn--primary bh-btn--sm mt-2"><Icon name="plus" size={18} />New food</a>
+	<a href="/foods/new" class="bh-btn wn-press bh-btn--primary bh-btn--sm mt-2"><Icon name="plus" size={18} />New food</a>
 </Habitat>
 
 {#snippet search()}
@@ -106,7 +98,14 @@
 			</div>
 		</header>
 		{#if ours === null}
-			<div class="grid justify-items-center py-6"><Loader kind="crumbs" /></div>
+			<div class="grid gap-5 py-3" aria-busy="true" aria-label="Loading the household's foods">
+				{#each [0.7, 0.5, 0.6] as w, i (i)}
+					<div class="grid gap-2">
+						<div class="mk-skeleton mk-skeleton--line wn-skeleton" style="width: {w * 100}%"></div>
+						<div class="mk-skeleton mk-skeleton--line wn-skeleton w-1/4"></div>
+					</div>
+				{/each}
+			</div>
 		{:else if !ours.length}
 			<EmptyState
 				trace="sunflower"

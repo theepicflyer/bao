@@ -1,6 +1,6 @@
 <script lang="ts">
 	import NutrientIcon from './NutrientIcon.svelte';
-	import Count from './Count.svelte';
+	import { Count } from 'warren/web';
 	import Icon from '../burrow/Icon.svelte';
 	import Field from '../burrow/Field.svelte';
 	import type { Food, Portion } from '../types.ts';
@@ -46,7 +46,7 @@
 		<div class="flex items-center gap-3">
 			<span class="bh-field__label">How many</span>
 			<div class="ml-auto flex items-center gap-2">
-				<button class="bh-btn bh-btn--secondary bh-btn--sm bh-btn--icon" aria-label="Less" onclick={() => step(value.count > 1 ? -1 : -0.25)}>
+				<button class="bh-btn wn-press bh-btn--secondary bh-btn--sm bh-btn--icon" aria-label="Less" onclick={() => step(value.count > 1 ? -1 : -0.25)}>
 					<Icon name="minus" size={18} />
 				</button>
 				<span class="bh-field__box w-20">
@@ -60,7 +60,7 @@
 						bind:value={value.count}
 					/>
 				</span>
-				<button class="bh-btn bh-btn--secondary bh-btn--sm bh-btn--icon" aria-label="More" onclick={() => step(value.count >= 1 ? 1 : 0.25)}>
+				<button class="bh-btn wn-press bh-btn--secondary bh-btn--sm bh-btn--icon" aria-label="More" onclick={() => step(value.count >= 1 ? 1 : 0.25)}>
 					<Icon name="plus" size={18} />
 				</button>
 			</div>

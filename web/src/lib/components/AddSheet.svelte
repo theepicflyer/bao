@@ -8,10 +8,10 @@
 	import Loader from '../burrow/Loader.svelte';
 	import Trace from '../burrow/Trace.svelte';
 	import { MEAL_LABEL, MEAL_TRACE, type Entry, type Food, type Meal, type Portion, type Quick, type QuickItem, type SavedMeal } from '../types.ts';
-	import { del, get, post } from '../api.ts';
+	import { del, get, post } from 'warren/web';
 	import { initialPortion, kcal, portionPayload, portionText, servingKcal } from '../format.ts';
 	import { toasts } from '../state.svelte.ts';
-	import { flip, fly } from '../motion.ts';
+	import { flip, fly, haptic, row } from 'warren/web';
 
 	let {
 		open = $bindable(false),
@@ -44,7 +44,7 @@
 		try {
 			quick = await get<Quick>(`/api/quick?meal=${meal}&day=${date}`);
 		} catch (err) {
-			toasts.error((err as Error).message);
+			toasts.error(err);
 		}
 	}
 
@@ -63,7 +63,7 @@
 				const res = await get<{ results: Food[] }>(`/api/foods/search?q=${encodeURIComponent(q)}&limit=25`);
 				if (mine === seq) results = res.results;
 			} catch (err) {
-				toasts.error((err as Error).message);
+				toasts.error(err);
 			} finally {
 				if (mine === seq) searching = false;
 			}
@@ -95,9 +95,10 @@
 		busy = true;
 		try {
 			const entries = await fn();
+			haptic('success');
 			undoable(entries, label(entries));
 		} catch (err) {
-			toasts.error((err as Error).message);
+			toasts.error(err);
 		} finally {
 			busy = false;
 		}
@@ -154,19 +155,21 @@
 	async function unpin(item: QuickItem) {
 		if (item.id == null || !quick) return;
 		await del(`/api/pins/${item.id}`);
+		haptic('warning');
 		quick = { ...quick, pins: quick.pins.filter((p) => p.id !== item.id) };
 	}
 
 	async function removeSaved(m: SavedMeal) {
 		if (!quick) return;
 		await del(`/api/saved-meals/${m.id}`);
+		haptic('warning');
 		quick = { ...quick, saved_meals: quick.saved_meals.filter((s) => s.id !== m.id) };
 	}
 </script>
 
 {#snippet quickRow(item: QuickItem, remove?: () => void)}
-	<li class="flex items-center">
-		<button class="bh-row mk-row-btn min-w-0 flex-1" onclick={() => addQuick(item)} disabled={busy}>
+	<li class="flex items-center" out:row>
+		<button class="bh-row mk-row-btn wn-press min-w-0 flex-1" onclick={() => addQuick(item)} disabled={busy}>
 			<span class="bh-row__tile"><Trace name={MEAL_TRACE[meal]} size={30} /></span>
 			<span class="bh-row__text">
 				<span class="bh-row__title">{item.name}</span>
@@ -175,7 +178,7 @@
 			<span class="bh-row__amount"><NutrientIcon kind="energy" labelled />{kcal(item.kcal)}</span>
 		</button>
 		{#if remove}
-			<button class="bh-btn bh-btn--ghost bh-btn--sm bh-btn--icon ml-1 shrink-0 text-ink-muted" aria-label="Remove {item.name}" onclick={remove}>
+			<button class="bh-btn wn-press bh-btn--ghost bh-btn--sm bh-btn--icon ml-1 shrink-0 text-ink-muted" aria-label="Remove {item.name}" onclick={remove}>
 				<Icon name="close" size={16} />
 			</button>
 		{/if}
@@ -186,7 +189,7 @@
 	<!-- a picked food slides in from the right, and back out to the list on the left -->
 	{#if picked}
 		<div class="space-y-4 pt-1" in:fly={{ x: 32, duration: 260 }}>
-			<button class="bh-btn bh-btn--ghost bh-btn--sm -ml-3" onclick={() => (picked = null)}>
+			<button class="bh-btn wn-press bh-btn--ghost bh-btn--sm -ml-3" onclick={() => (picked = null)}>
 				<Icon name="chevron-left" size={18} />Back to results
 			</button>
 			<div class="small flex items-center gap-2 text-ink-muted">
@@ -226,7 +229,7 @@
 				<ul class="mk-rows mk-stagger">
 					{#each results as food (food.id)}
 						<li animate:flip>
-							<button class="bh-row mk-row-btn" onclick={() => choose(food)}>
+							<button class="bh-row mk-row-btn wn-press" onclick={() => choose(food)}>
 								<span class="bh-row__text">
 									<span class="bh-row__title">{food.name}</span>
 									<span class="bh-row__sub">{#if food.brand}<span class="truncate">{food.brand}</span>{/if}<span><NutrientIcon kind="energy" />{servingKcal(food)}</span></span>
@@ -242,7 +245,7 @@
 				{#if quick.yesterday}
 					<section>
 						<h3 class="mk-section-label">Same as yesterday</h3>
-						<button class="bh-row mk-row-btn" onclick={addYesterday} disabled={busy}>
+						<button class="bh-row mk-row-btn wn-press" onclick={addYesterday} disabled={busy}>
 							<span class="bh-row__tile"><Trace name={MEAL_TRACE[meal]} size={30} /></span>
 							<span class="bh-row__text">
 								<span class="bh-row__title">Yesterday's {MEAL_LABEL[meal].toLowerCase()}</span>
@@ -267,8 +270,8 @@
 						<h3 class="mk-section-label">Saved meals</h3>
 						<ul class="mk-rows">
 							{#each quick.saved_meals as m (m.id)}
-								<li class="flex items-center">
-									<button class="bh-row mk-row-btn min-w-0 flex-1" onclick={() => addSaved(m)} disabled={busy}>
+								<li class="flex items-center" out:row>
+									<button class="bh-row mk-row-btn wn-press min-w-0 flex-1" onclick={() => addSaved(m)} disabled={busy}>
 										<span class="bh-row__tile"><Icon name="bookmark" size={22} /></span>
 										<span class="bh-row__text">
 											<span class="bh-row__title">{m.name}</span>
@@ -276,7 +279,7 @@
 										</span>
 									</button>
 									<button
-										class="bh-btn bh-btn--ghost bh-btn--sm bh-btn--icon ml-1 shrink-0 text-ink-muted"
+										class="bh-btn wn-press bh-btn--ghost bh-btn--sm bh-btn--icon ml-1 shrink-0 text-ink-muted"
 										aria-label="Delete saved meal {m.name}"
 										onclick={() => removeSaved(m)}
 									>
@@ -316,9 +319,9 @@
 
 	{#snippet footer()}
 		{#if picked}
-			<button class="bh-btn bh-btn--primary w-full" onclick={addPicked} disabled={busy}>Add to {MEAL_LABEL[meal].toLowerCase()}</button>
+			<button class="bh-btn wn-press bh-btn--primary w-full" onclick={addPicked} disabled={busy}>Add to {MEAL_LABEL[meal].toLowerCase()}</button>
 		{:else}
-			<button class="bh-btn bh-btn--secondary w-full" onclick={() => (open = false)}>Done</button>
+			<button class="bh-btn wn-press bh-btn--secondary w-full" onclick={() => (open = false)}>Done</button>
 		{/if}
 	{/snippet}
 </Sheet>

@@ -3,6 +3,10 @@
    Both are copies; see src/lib/burrow/. Layered so Tailwind utilities can still adjust a component. */
 @import '../lib/burrow/tokens.css' layer(base);
 @import '../lib/burrow/burrow.css' layer(components);
+/* warren/web's motion: screen transitions keyed on html[data-nav], what holds still while they run
+   (data-wn-keep), press feedback (wn-press) and skeletons. Layered under Bao's own so the motion
+   section below can combine its transitions with the components'. */
+@import 'warren/web/motion.css' layer(base);
 
 /* A half-folded screen in book posture: the fold runs top to bottom, splitting the viewport into
    a left and a right segment (the Viewport Segments API, Chrome 138+). */
@@ -103,14 +107,6 @@ body {
 body {
 	min-height: 100dvh;
 	overscroll-behavior-y: none;
-}
-
-button,
-a,
-input,
-select,
-textarea {
-	touch-action: manipulation;
 }
 
 input,
@@ -463,11 +459,26 @@ textarea {
 		}
 	}
 
+	/* A sheet's grab handle: a small bar in a wider strip that takes the drag (dragToDismiss). */
 	.mk-handle {
+		display: grid;
+		place-items: center;
+		height: 20px;
+		touch-action: none;
+		cursor: grab;
+	}
+
+	.mk-handle::before {
+		content: '';
 		width: 40px;
 		height: 5px;
 		border-radius: var(--radius-pill);
 		background: var(--line);
+	}
+
+	/* the scrim lightens as a sheet is pulled down */
+	.mk-scrim {
+		opacity: calc(1 - var(--wn-drag, 0));
 	}
 
 	/* Bao's message button on phones: a round sticker like Burrow's nav FAB, floating on its own. */
@@ -492,6 +503,11 @@ textarea {
 	.mk-fab:focus-visible {
 		outline: 3px solid var(--sky-text);
 		outline-offset: 2px;
+	}
+
+	/* Toasts come and go with warren/web's transitions (Toasts.svelte) instead of Burrow's pop. */
+	.mk-toast {
+		animation: none;
 	}
 
 	/* Between one Bao session and the next in the day's chat. */
@@ -534,29 +550,25 @@ textarea {
 		border-bottom-left-radius: 6px;
 	}
 
+	/* A first load's placeholder: the shape of a card, or of a row inside one (with wn-skeleton, it pulses). */
 	.mk-skeleton {
 		background: var(--surface);
 		border-radius: var(--radius-lg);
 		box-shadow: var(--shadow-lift);
 	}
 
-	@media (prefers-reduced-motion: no-preference) {
-		.mk-skeleton {
-			animation: mk-pulse 1.6s ease-in-out infinite;
-		}
-	}
-
-	@keyframes mk-pulse {
-		50% {
-			opacity: 0.55;
-		}
+	.mk-skeleton--line {
+		height: 14px;
+		border-radius: var(--radius-pill);
+		background: var(--surface-sunk);
+		box-shadow: none;
 	}
 }
 
 /* Motion. A screen's cards rise in one after another, bars grow, the sunflower opens, meters fill and numbers
-   count up (Count.svelte); things move when they change, and the habitats have a little life in them. Svelte
-   transitions for things added and removed later are in lib/motion.ts, screen changes are view transitions
-   (+layout.svelte). Everything that moves sits behind no-preference: reduced motion gets none of it. */
+   count up (warren/web's Count); things move when they change, and the habitats have a little life in them. Svelte
+   transitions for things added and removed later, gestures and screen changes come from warren/web (its motion.css
+   is imported above; +layout.svelte runs the screen changes). Everything that moves sits behind no-preference: reduced motion gets none of it. */
 @layer components {
 	/* Widths through custom properties, so the motion below can start them at zero. */
 	.bh-meter__fill {
@@ -572,26 +584,15 @@ textarea {
 		flex: var(--grow) 0 0;
 	}
 
-	/* The nav's current pill, one blob that slides between items (slidingPill in lib/motion.ts). */
-	.has-blob {
-		position: relative;
-	}
-
-	.has-blob > a {
-		position: relative; /* over the blob */
-	}
-
+	/* The nav's current pill, one blob that slides between items (warren/web's slidingPill). */
 	.has-blob .is-active .bh-nav__pill {
 		background: none;
 	}
 
-	.mk-pill-blob {
-		position: absolute;
-		top: 0;
-		left: 0;
+	.wn-pill-blob {
+		position: absolute; /* motion.css's .has-blob > * would put it in the flow */
 		border-radius: var(--radius-pill);
 		background: var(--accent-soft);
-		pointer-events: none;
 	}
 
 	/* Bao ducks behind the nav on day screens, where it sits over the message button instead. */
@@ -613,33 +614,6 @@ textarea {
 	}
 
 	@media (prefers-reduced-motion: no-preference) {
-		/* Screens: the old one lifts away and the new one rises in; the navs stay put while their pill slides. */
-		::view-transition-old(root) {
-			animation: mk-leave 0.16s ease-in both;
-		}
-
-		::view-transition-new(root) {
-			animation: mk-enter 0.34s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-		}
-
-		.mk-dock {
-			view-transition-name: mk-dock;
-		}
-
-		.mk-rail {
-			view-transition-name: mk-rail;
-		}
-
-		::view-transition-old(mk-dock),
-		::view-transition-old(mk-rail) {
-			display: none;
-		}
-
-		::view-transition-new(mk-dock),
-		::view-transition-new(mk-rail) {
-			animation: none;
-		}
-
 		/* Cards rise in one after another while a trail is fresh, and a card added later rises in by itself.
 		   Lists marked mk-stagger rise in row by row, and so does a row added later. */
 		.mk-trailpath > :not(.mk-trailpath__art),
@@ -782,7 +756,7 @@ textarea {
 		}
 
 		@starting-style {
-			.bh-petal.is-on {
+			.bh-petal.is-on:not(.mk-returned *) {
 				fill: var(--sunny-soft);
 			}
 		}
@@ -794,16 +768,15 @@ textarea {
 		}
 
 		@starting-style {
-			.bh-meter__fill,
-			.meter-split {
+			:is(.bh-meter__fill, .meter-split):not(.mk-returned *) {
 				width: 0;
 			}
 
-			.bh-meter__cap {
+			.bh-meter__cap:not(.mk-returned *) {
 				left: 0;
 			}
 
-			.bh-meter__cap svg {
+			.bh-meter__cap:not(.mk-returned *) svg {
 				rotate: 0turn;
 			}
 		}
@@ -813,7 +786,7 @@ textarea {
 		}
 
 		@starting-style {
-			.mk-split {
+			.mk-split:not(.mk-returned *) {
 				flex-grow: 0;
 			}
 		}
@@ -842,14 +815,7 @@ textarea {
 			transition: left 0.15s ease-out;
 		}
 
-		/* The nav: the pill slides over, and the icon it lands on gives a wiggle. */
-		.mk-pill-blob {
-			transition:
-				translate 0.42s cubic-bezier(0.34, 1.56, 0.64, 1),
-				width 0.3s ease,
-				height 0.3s ease;
-		}
-
+		/* The nav: the pill slides over (motion.css), and the icon it lands on gives a wiggle. */
 		.bh-nav__item,
 		.mk-rail__item {
 			transition:
@@ -907,10 +873,6 @@ textarea {
 				box-shadow 0.15s ease;
 		}
 
-		.mk-row-btn:active:not(:disabled) {
-			scale: 0.99;
-		}
-
 		/* Bao's message button pops in with the day. */
 		.mk-fab {
 			animation: mk-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s backwards;
@@ -933,19 +895,60 @@ textarea {
 				mk-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards,
 				mk-bob 3s ease-in-out 0.5s infinite alternate;
 		}
-	}
 
-	@keyframes mk-leave {
-		to {
-			opacity: 0;
-			transform: translateY(-6px);
+		/* Pressed buttons, rows, cards and nav items give a little under the finger and spring back (warren/web's
+		   wn-press), keeping their own colour and shadow transitions. Rows and cards give less, being wider. */
+		.wn-press {
+			transition:
+				scale 0.32s var(--wn-spring),
+				transform 0.08s ease,
+				box-shadow 0.08s ease,
+				opacity 0.15s ease,
+				background-color 0.15s ease,
+				color 0.15s ease,
+				border-color 0.15s ease;
+		}
+
+		.wn-press:active:not(:disabled) {
+			transition-duration: 0.08s;
+		}
+
+		.mk-row-btn.wn-press {
+			--wn-press-scale: 0.985;
+		}
+
+		.bh-card.wn-press {
+			--wn-press-scale: 0.98;
+		}
+
+		/* A screen gone back to (mk-returned on <main>, set as it mounts and kept for its life) was seen a moment
+		   ago: it stands as it was rather than rising, drawing and growing in again. Sheets opened on it still do. */
+		.mk-returned
+			:is(
+				.mk-trailpath > :not(.mk-trailpath__art),
+				.mk-stagger > *,
+				.bh-trail__step,
+				.bh-peek__animal,
+				.bh-peek__paws,
+				.bh-ring--sunflower svg,
+				.mk-bar,
+				.mk-bar-dot,
+				.mk-draw,
+				.mk-fab,
+				.bh-empty > :first-child
+			):not([role='dialog'] *) {
+			animation: none;
+		}
+
+		.mk-returned .bh-empty > .bh-trace:not([role='dialog'] *) {
+			animation: mk-bob 3s ease-in-out infinite alternate;
 		}
 	}
 
-	@keyframes mk-enter {
-		from {
-			opacity: 0;
-			transform: translateY(12px);
+	/* Burrow's own reduced-motion list leaves out the meter's sunflower cap. */
+	@media (prefers-reduced-motion: reduce) {
+		.bh-meter__cap {
+			transition: none;
 		}
 	}
 

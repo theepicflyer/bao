@@ -3,7 +3,7 @@
 	import Icon from '../burrow/Icon.svelte';
 	import { NUTRIENT_OF } from './NutrientIcon.svelte';
 	import type { FoodDraft, NutrientKey } from '../types.ts';
-	import { flip, scale } from '../motion.ts';
+	import { flip, scale } from 'warren/web';
 
 	let { draft = $bindable() }: { draft: FoodDraft } = $props();
 
@@ -59,7 +59,7 @@
 
 {#snippet basisChip(basis: 'per_100g' | 'per_serving', text: string)}
 	{@const selected = draft.basis === basis}
-	<button role="radio" aria-checked={selected} class="bh-seg__opt {selected ? 'is-on' : ''}" onclick={() => setBasis(basis)}>{text}</button>
+	<button role="radio" aria-checked={selected} class="bh-seg__opt wn-press {selected ? 'is-on' : ''}" onclick={() => setBasis(basis)}>{text}</button>
 {/snippet}
 
 <div class="space-y-5">
@@ -101,7 +101,7 @@
 					}}
 				/>
 			</span>
-			<button class="bh-btn bh-btn--secondary" onclick={addAlias} disabled={!aliasInput.trim()}>Add</button>
+			<button class="bh-btn wn-press bh-btn--secondary" onclick={addAlias} disabled={!aliasInput.trim()}>Add</button>
 		</div>
 		<p class="bh-field__hint mt-1.5">Generic words that should mean this food, so “a bowl of yogurt” picks it.</p>
 	</div>
@@ -147,7 +147,7 @@
 						<span class="bh-field__affix">g</span>
 					</span>
 					<button
-						class="bh-btn bh-btn--ghost bh-btn--sm bh-btn--icon shrink-0 {s.default ? 'text-ink' : 'text-ink-muted'}"
+						class="bh-btn wn-press bh-btn--ghost bh-btn--sm bh-btn--icon shrink-0 {s.default ? 'text-ink' : 'text-ink-muted'}"
 						aria-label={s.default ? 'Default serving' : 'Make default'}
 						aria-pressed={s.default}
 						title="Default serving"
@@ -155,12 +155,12 @@
 					>
 						<Icon name="star" size={18} filled={s.default} />
 					</button>
-					<button class="bh-btn bh-btn--ghost bh-btn--sm bh-btn--icon shrink-0 text-ink-muted" aria-label="Remove serving" onclick={() => removeServing(i)}>
+					<button class="bh-btn wn-press bh-btn--ghost bh-btn--sm bh-btn--icon shrink-0 text-ink-muted" aria-label="Remove serving" onclick={() => removeServing(i)}>
 						<Icon name="close" size={16} />
 					</button>
 				</div>
 			{/each}
 		</div>
-		<button class="bh-btn bh-btn--ghost bh-btn--sm -ml-3 mt-2" onclick={addServing}><Icon name="plus" size={18} />Add serving</button>
+		<button class="bh-btn wn-press bh-btn--ghost bh-btn--sm -ml-3 mt-2" onclick={addServing}><Icon name="plus" size={18} />Add serving</button>
 	</div>
 </div>

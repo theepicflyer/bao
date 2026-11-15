@@ -14,7 +14,7 @@
 
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { fade } from '../motion.ts';
+	import { fade } from 'warren/web';
 
 	/* Sticker bars from one baseline, with an optional dashed target and a trend line. One tab stop:
 	   arrow keys move between bars, Enter picks one. Pointer hover or tap shows the tooltip. */
