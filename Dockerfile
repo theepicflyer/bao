@@ -1,6 +1,8 @@
 FROM node:24-slim AS web
+# The web app imports warren/web, which npm clones from Warren's git repository (web/.npmrc skips its build).
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /web
-COPY web/package.json web/package-lock.json ./
+COPY web/package.json web/package-lock.json web/.npmrc ./
 RUN npm ci
 COPY web/ ./
 RUN npm run build

@@ -20,7 +20,7 @@
     "better-sqlite3": "^13.2.0",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.13.18",
-    "warren": "github:theepicflyer/warren#a31255c69884d8b8589ce860d8289832e6d82723",
+    "warren": "github:theepicflyer/warren#e7cdb00e19ed7b09dcf91d924bef4497a4ad714f",
     "zod": "^4.6.7"
   },
   "devDependencies": {
