@@ -9,10 +9,9 @@
 	import Assistant from '#lib/components/Assistant.svelte';
 	import Sheet from '#lib/components/Sheet.svelte';
 	import Field from '#lib/burrow/Field.svelte';
-	import Habitat from '#lib/burrow/Habitat.svelte';
 	import Icon from '#lib/burrow/Icon.svelte';
 	import TrailPath from '#lib/burrow/TrailPath.svelte';
-	import type { Mood } from '#lib/burrow/art.js';
+	import { Habitat, type Mood } from 'warren/burrow';
 	import { changes, fly, haptic, loaded, post } from 'warren/web';
 	import { addDays, dayLabel, daySubtitle, dayTitle } from '#lib/format.ts';
 	import { MEALS, MEAL_LABEL, type Day, type Entry, type Meal } from '#lib/types.ts';

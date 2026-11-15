@@ -5,9 +5,8 @@
 	import NutrientIcon, { NUTRIENT_OF } from '#lib/components/NutrientIcon.svelte';
 	import SourceBadge from '#lib/components/SourceBadge.svelte';
 	import PortionPicker from '#lib/components/PortionPicker.svelte';
-	import Breadcrumbs from '#lib/burrow/Breadcrumbs.svelte';
 	import Icon from '#lib/burrow/Icon.svelte';
-	import Peek from '#lib/burrow/Peek.svelte';
+	import { Breadcrumbs, Peek } from 'warren/burrow';
 	import { del, haptic, loaded, patch, post } from 'warren/web';
 	import { draftFrom, draftPayload, emptyDraft } from '#lib/fooddraft.ts';
 	import { initialPortion, portionPayload } from '#lib/format.ts';

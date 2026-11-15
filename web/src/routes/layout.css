@@ -1,8 +1,10 @@
 @import 'tailwindcss';
-/* Burrow, the household design system: tokens (colours per theme, type, space, radii) and its component classes.
-   Both are copies; see src/lib/burrow/. Layered so Tailwind utilities can still adjust a component. */
-@import '../lib/burrow/tokens.css' layer(base);
-@import '../lib/burrow/burrow.css' layer(components);
+/* Burrow, the household design system, from Warren (warren/burrow): tokens (colours per theme, space,
+   radii, fonts), its text styles and its component classes. Layered so Tailwind utilities can still
+   adjust a component. */
+@import 'warren/burrow/tokens.css' layer(base);
+@import 'warren/burrow/type.css' layer(base);
+@import 'warren/burrow/burrow.css' layer(components);
 /* warren/web's motion: screen transitions keyed on html[data-nav], what holds still while they run
    (data-wn-keep), press feedback (wn-press) and skeletons. Layered under Bao's own so the motion
    section below can combine its transitions with the components'. */

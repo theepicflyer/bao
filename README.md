@@ -138,7 +138,7 @@ Never set `DEV_LOGIN=true` on a server. Put `ANTHROPIC_API_KEY` in your environm
 Where things are:
 
 - `server/`: the backend in TypeScript, on [Warren](https://github.com/theepicflyer/warren), the framework our household's apps share. It holds the food and log rules, the assistant's prompt and tools (`src/agent/`), and its test cases (`evals/`)
-- `web/`: the SvelteKit app; `web/src/lib/burrow/` is the design system
+- `web/`: the SvelteKit app; the design system, Burrow, comes from Warren (`warren/burrow`), and `web/src/lib/burrow/` holds Bao's own components on it
 - `data/reference/`: the food lists, and `scripts/` builds them
 - `evals/`: how the assistant is tested, with the photos
 - `docs/screenshots/`: the screenshots above, from a demo account with made-up meals

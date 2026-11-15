@@ -1,5 +1,5 @@
 <script lang="ts" module>
-	import { ICONS } from './art.js';
+	import { ICONS } from 'warren/burrow';
 
 	/* Burrow's icon set plus the few Bao needs, drawn the same way: round caps, 2.2 stroke, 24 grid. */
 	const EXTRA = {

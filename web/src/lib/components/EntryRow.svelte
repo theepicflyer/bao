@@ -1,9 +1,9 @@
 <script lang="ts">
 	import MacroAmounts from './MacroAmounts.svelte';
 	import NutrientIcon from './NutrientIcon.svelte';
-	import Trace from '../burrow/Trace.svelte';
 	import { MEAL_TRACE, type Entry } from '../types.ts';
 	import { entryPortion, kcal } from '../format.ts';
+	import { Trace } from 'warren/burrow';
 
 	let { entry, onclick }: { entry: Entry; onclick: () => void } = $props();
 

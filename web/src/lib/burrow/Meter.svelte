@@ -1,8 +1,7 @@
 <script lang="ts">
-	import Trace from './Trace.svelte';
 	import NutrientIcon, { type Nutrient } from '../components/NutrientIcon.svelte';
 	import { Count } from 'warren/web';
-	import type { TraceName } from './art.js';
+	import { Trace, type TraceName } from 'warren/burrow';
 
 	let {
 		label,

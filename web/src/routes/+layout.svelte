@@ -5,11 +5,11 @@
 	import './layout.css';
 	import { page } from '$app/state';
 	import { afterNavigate, goto, onNavigate } from '$app/navigation';
+	import { Loader } from 'warren/burrow';
 	import { configureApi, configureData, direction, pageTransition, swipeBack } from 'warren/web';
 	import BottomNav from '#lib/components/BottomNav.svelte';
 	import SideNav from '#lib/components/SideNav.svelte';
 	import Toasts from '#lib/components/Toasts.svelte';
-	import Loader from '#lib/burrow/Loader.svelte';
 	import { TABS, isTab } from '#lib/nav.ts';
 	import { session, toasts } from '#lib/state.svelte.ts';
 	import { onMount } from 'svelte';

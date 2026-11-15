@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import Icon from '../burrow/Icon.svelte';
-	import Peek from '../burrow/Peek.svelte';
 	import { NAV_ITEMS, navPeek } from '../nav.ts';
+	import { Peek } from 'warren/burrow';
 	import { slidingPill } from 'warren/web';
 
 	const path = $derived(page.url.pathname);

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import Field from '#lib/burrow/Field.svelte';
-	import World from '#lib/burrow/World.svelte';
+	import { World } from 'warren/burrow';
 	import { get, post } from 'warren/web';
 	import { session, toasts } from '#lib/state.svelte.ts';
 	import { onMount } from 'svelte';

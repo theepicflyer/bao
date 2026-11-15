@@ -1,9 +1,9 @@
 <script lang="ts">
 	import EntryRow from './EntryRow.svelte';
 	import NutrientIcon from './NutrientIcon.svelte';
+	import { Trace } from 'warren/burrow';
 	import { Count } from 'warren/web';
 	import Icon from '../burrow/Icon.svelte';
-	import Trace from '../burrow/Trace.svelte';
 	import type { Entry, Meal, Nutrients } from '../types.ts';
 	import { MEAL_LABEL } from '../types.ts';
 	import { kcal } from '../format.ts';
