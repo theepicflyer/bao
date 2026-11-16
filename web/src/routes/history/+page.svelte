@@ -6,13 +6,12 @@
 	import MacroDays from '#lib/components/MacroDays.svelte';
 	import MacroAmounts from '#lib/components/MacroAmounts.svelte';
 	import MacrosCard from '#lib/components/MacrosCard.svelte';
+	import { Habitat, TunnelRow } from 'warren/burrow';
 	import { Count } from 'warren/web';
 	import NutrientIcon, { type Nutrient } from '#lib/components/NutrientIcon.svelte';
 	import WeekdayCard from '#lib/components/WeekdayCard.svelte';
-	import Habitat from '#lib/burrow/Habitat.svelte';
 	import Icon from '#lib/burrow/Icon.svelte';
 	import TrailPath from '#lib/burrow/TrailPath.svelte';
-	import TunnelRow from '#lib/burrow/TunnelRow.svelte';
 	import { loaded } from 'warren/web';
 	import { addDays, dayLabel, kcal, parseDate } from '#lib/format.ts';
 	import { loggedAverage, rollingKcal, spanLabel } from '#lib/history.ts';

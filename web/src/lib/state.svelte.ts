@@ -1,7 +1,7 @@
 import { MediaQuery } from 'svelte/reactivity';
 import { Session, Toasts } from 'warren/web';
 import type { Me } from './types.ts';
-import type { Character, Mood } from './burrow/art.js';
+import type { Character, Mood } from 'warren/burrow';
 
 /** Who is signed in. Warren's session, loaded once from /api/me. */
 export const session = new Session<Me>();

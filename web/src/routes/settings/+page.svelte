@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import Field from '#lib/burrow/Field.svelte';
-	import Habitat from '#lib/burrow/Habitat.svelte';
 	import Icon from '#lib/burrow/Icon.svelte';
 	import TrailPath from '#lib/burrow/TrailPath.svelte';
+	import { Habitat } from 'warren/burrow';
 	import { ApiError, forgetData, haptic, loaded, patch, post } from 'warren/web';
 	import { clock, dayLabel, isoDate } from '#lib/format.ts';
 	import { pushSupport, refresh, sendTest, turnOff, turnOn, type PushSupport } from '#lib/push.ts';

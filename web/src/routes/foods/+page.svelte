@@ -2,10 +2,9 @@
 	import NutrientIcon from '#lib/components/NutrientIcon.svelte';
 	import SourceBadge from '#lib/components/SourceBadge.svelte';
 	import EmptyState from '#lib/burrow/EmptyState.svelte';
-	import Habitat from '#lib/burrow/Habitat.svelte';
 	import Icon from '#lib/burrow/Icon.svelte';
-	import Loader from '#lib/burrow/Loader.svelte';
 	import TrailPath from '#lib/burrow/TrailPath.svelte';
+	import { Habitat, Loader } from 'warren/burrow';
 	import { flip, get, loaded, preload } from 'warren/web';
 	import { servingKcal } from '#lib/format.ts';
 	import type { Food } from '#lib/types.ts';

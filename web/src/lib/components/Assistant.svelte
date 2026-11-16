@@ -4,10 +4,7 @@
 	import ThumbIcon from './ThumbIcon.svelte';
 	import Field from '../burrow/Field.svelte';
 	import Icon from '../burrow/Icon.svelte';
-	import Loader from '../burrow/Loader.svelte';
-	import Mascot from '../burrow/Mascot.svelte';
-	import Peek from '../burrow/Peek.svelte';
-	import type { Mood } from '../burrow/art.js';
+	import { Loader, Mascot, Peek, type Mood } from 'warren/burrow';
 	import type { Turn, TurnChange } from '../types.ts';
 	import { get, post, put } from 'warren/web';
 	import { sendTurn, TOOL_LABEL } from '../agent.ts';

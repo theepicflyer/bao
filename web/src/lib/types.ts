@@ -1,4 +1,4 @@
-import type { TraceName } from './burrow/art.js';
+import type { TraceName } from 'warren/burrow';
 
 export type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snacks';
 export const MEALS: Meal[] = ['breakfast', 'lunch', 'dinner', 'snacks'];

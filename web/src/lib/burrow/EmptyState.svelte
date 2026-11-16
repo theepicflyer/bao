@@ -1,8 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import Mascot from './Mascot.svelte';
-	import Trace from './Trace.svelte';
-	import type { Character, Mood, TraceName } from './art.js';
+	import { Mascot, Trace, type Character, type Mood, type TraceName } from 'warren/burrow';
 
 	/* An animal (or, on a screen that already has its animal, a trace), a title, one line and one action. */
 	let {

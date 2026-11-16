@@ -5,9 +5,8 @@
 	import SourceBadge from './SourceBadge.svelte';
 	import EmptyState from '../burrow/EmptyState.svelte';
 	import Icon from '../burrow/Icon.svelte';
-	import Loader from '../burrow/Loader.svelte';
-	import Trace from '../burrow/Trace.svelte';
 	import { MEAL_LABEL, MEAL_TRACE, type Entry, type Food, type Meal, type Portion, type Quick, type QuickItem, type SavedMeal } from '../types.ts';
+	import { Loader, Trace } from 'warren/burrow';
 	import { del, get, post } from 'warren/web';
 	import { initialPortion, kcal, portionPayload, portionText, servingKcal } from '../format.ts';
 	import { toasts } from '../state.svelte.ts';

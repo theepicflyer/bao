@@ -34,7 +34,7 @@
 
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { trailSVG, type TrailKind } from './art.js';
+	import { trailSVG, type TrailKind } from 'warren/burrow';
 
 	/* One trail winding down a screen behind its cards: the cards hide it and the gaps between them show it.
 	   It is full strength down to the element marked data-trail-end (the next thing to do) and faint after. */

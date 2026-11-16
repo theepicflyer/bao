@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { Mascot } from 'warren/burrow';
 	import { flip, fly, haptic, spring } from 'warren/web';
-	import Mascot from '../burrow/Mascot.svelte';
 	import { toasts } from '../state.svelte.ts';
 
 	// Stacked just above the nav (and Bao's message button on day screens), newest at the bottom; centred on the
