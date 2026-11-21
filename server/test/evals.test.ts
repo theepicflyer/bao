@@ -10,10 +10,10 @@ import { Case, Item, Msg } from "../evals/spec.js";
 import { flaggedTurns, toMarkdown } from "../src/exportFlagged.js";
 import { importLegacy } from "../src/importLegacy.js";
 import * as logSvc from "../src/log.js";
-import { testBao } from "./helpers.js";
+import { FakeClaude, say, testBao, turn, use } from "./helpers.js";
 
 test("every eval case is well formed", () => {
-  expect(CASES).toHaveLength(91);
+  expect(CASES).toHaveLength(94);
   expect(CASES.flatMap((c) => check(c).map((p) => `${c.id}: ${p}`))).toEqual([]);
   expect(CASES.filter((c) => c.tags.includes("meal")).every((c) => !c.strict_count)).toBe(true);
 });
@@ -43,7 +43,7 @@ test("the grader matches entries to expectations and names what is wrong", () =>
   expect(grade(db, c, user, ours, "")).toEqual({ grade: { pass: 1, items: 1 }, failures: [] });
 });
 
-test("flagged turns are exported with their changes, hand edits and photos", () => {
+test("flagged turns are exported with their changes, hand edits, corrections and photos", () => {
   const fresh = testBao({ reference: fs.mkdtempSync(path.join(os.tmpdir(), "bao-noref-")) });
   const fixture = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/legacy");
   importLegacy(fresh.db, fixture, fresh.app.config.dataDir);
@@ -52,10 +52,41 @@ test("flagged turns are exported with their changes, hand edits and photos", () 
   const turns = flaggedTurns(db, path.join(fresh.app.config.dataDir, "files"));
   db.close();
   expect(turns.map((t) => [t.turn_id, t.reasons, t.rating_note, t.log_date])).toEqual([
-    [1, ["thumbs_down", "hand_edited"], "wrong portion", "2026-03-03"],
+    [1, ["thumbs_down", "hand_edited", "corrected_later"], "wrong portion", "2026-03-03"],
   ]);
+  // the second turn removed the kopi the first one logged
+  expect(turns[0]!.corrections.map((c: any) => [c.turn_id, c.entry_id, c.action, c.user_text])).toEqual([[2, 3, "delete", "remove the kopi"]]);
   expect(turns[0]!.hand_edits.map((e: any) => [e.entry_id, e.action])).toEqual([[4, "update"]]);
   expect(turns[0]!.changes).toHaveLength(4);
   expect(fs.existsSync(turns[0]!.photos[0])).toBe(true);
-  expect(toMarkdown(turns)).toContain("## Turn 1: thumbs_down, hand_edited");
+  expect(toMarkdown(turns)).toContain("## Turn 1: thumbs_down, hand_edited, corrected_later");
+});
+
+test("a turn whose entries a later turn corrected is flagged with the correction", async () => {
+  const claude = new FakeClaude([
+    use("tu_1", "log_entries", { entries: [{ meal: "dinner", name: "Swiss roll", kcal: 530 }] }),
+    say("Logged."),
+    use("tu_2", "update_entries", { updates: [{ entry_id: 1, kcal: 260 }] }),
+    say("Halved it."),
+  ]);
+  const bao = testBao({ anthropic: claude });
+  const alice = await bao.as("Alice");
+  await turn(bao, alice, "dessert");
+  await turn(bao, alice, "the swiss roll was smaller");
+  bao.app.database.sqlite.pragma("wal_checkpoint(TRUNCATE)");
+  const db = new Database(bao.app.database.path, { readonly: true });
+  const turns = flaggedTurns(db, path.join(bao.app.config.dataDir, "files"));
+  db.close();
+  expect(turns.map((t) => [t.turn_id, t.reasons])).toEqual([[1, ["corrected_later"]]]);
+  expect(turns[0]!.corrections).toEqual([
+    {
+      turn_id: 2,
+      user_text: "the swiss roll was smaller",
+      entry_id: 1,
+      action: "update",
+      before: expect.objectContaining({ kcal: 530 }),
+      after: expect.objectContaining({ kcal: 260 }),
+    },
+  ]);
+  expect(toMarkdown(turns)).toContain("**Later corrections:**");
 });

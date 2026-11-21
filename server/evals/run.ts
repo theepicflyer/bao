@@ -189,19 +189,22 @@ function turnMessages(db: Db, userId: number): { messages: Message[]; rows: (typ
 }
 
 /** Tool calls made over the case, and the text of those that came back as errors. */
-function toolStats(messages: Message[]): { calls: number; errors: string[] } {
+function toolStats(messages: Message[]): { calls: number; errors: string[]; names: Set<string> } {
   let calls = 0;
   const errors: string[] = [];
+  const names = new Set<string>();
   for (const m of messages) {
     if (typeof m.content === "string") continue;
     for (const b of m.content) {
-      if (b.type === "tool_use") calls += 1;
-      else if (b.type === "tool_result" && b.is_error) {
+      if (b.type === "tool_use") {
+        calls += 1;
+        names.add(b.name);
+      } else if (b.type === "tool_result" && b.is_error) {
         errors.push(typeof b.content === "string" ? b.content : JSON.stringify(b.content));
       }
     }
   }
-  return { calls, errors };
+  return { calls, errors, names };
 }
 
 export interface Grade {
@@ -285,8 +288,9 @@ export function grade(db: Db, c: Case, user: User, ours: Ours, reply: string, fi
   for (const pattern of c.reply_forbid) {
     if (matches(pattern, reply)) failures.push(`reply matches /${pattern}/`);
   }
-  if (c.max_tool_calls !== null || c.max_tool_errors !== null) {
-    const { calls, errors } = toolStats(turnMessages(db, user.id).messages);
+  if (c.max_tool_calls !== null || c.max_tool_errors !== null || c.tools_called.length) {
+    const { calls, errors, names } = toolStats(turnMessages(db, user.id).messages);
+    for (const name of c.tools_called) if (!names.has(name)) failures.push(`never called ${name}`);
     if (c.max_tool_calls !== null && calls > c.max_tool_calls) failures.push(`${calls} tool calls, max ${c.max_tool_calls}`);
     if (c.max_tool_errors !== null && errors.length > c.max_tool_errors) {
       failures.push(`tool errors: ${errors.map((e) => e.slice(0, 80)).join("; ")}`);
@@ -349,6 +353,7 @@ async function runCase(c: Case, rep: number, config: AgentConfig, template: stri
       for (const name of photosOf(msg)) {
         fileIds.push((await saveImage(db, dir, { userId: user.id, data: fs.readFileSync(path.join(PHOTOS, name)) })).id);
       }
+      if (msg.new_thread) threadId = null;
       const timing: Record<string, number> = { turn: index };
       const turnStart = performance.now();
       for await (const event of runTurn(deps, { userId: user.id, scope: c.log_date, text: msg.text, fileIds, threadId, now })) {
