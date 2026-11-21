@@ -13,10 +13,12 @@ export interface Msg {
   photo: string | null;
   /** Several photos in one message, in order. */
   photos: string[];
+  /** Sent after reopening Bao's sheet: a new conversation, not a follow-up in the same one. */
+  new_thread: boolean;
 }
 
 export function Msg(text: string, options: Partial<Omit<Msg, "text">> = {}): Msg {
-  return { text, photo: null, photos: [], ...options };
+  return { text, photo: null, photos: [], new_thread: false, ...options };
 }
 
 export const photosOf = (msg: Msg): string[] => [...(msg.photo ? [msg.photo] : []), ...msg.photos];
@@ -149,6 +151,8 @@ export interface Case {
   max_tool_errors: number | null;
   /** Regular expressions the last reply must not match. */
   reply_forbid: string[];
+  /** Tools that must be called at least once over the case. */
+  tools_called: string[];
 }
 
 export function Case(
@@ -179,6 +183,7 @@ export function Case(
     max_tool_calls: null,
     max_tool_errors: null,
     reply_forbid: [],
+    tools_called: [],
     ...options,
   };
 }

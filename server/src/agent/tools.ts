@@ -1,16 +1,17 @@
 /**
- * Bao's tools. The first seven are the in-app agent's: they return compact text, which costs
+ * Bao's tools. The first eight are the in-app agent's: they return compact text, which costs
  * fewer tokens than JSON. The rest are read-only tools for MCP clients (an analysis agent on
  * claude.ai), which return data.
  */
 import { inArray } from "drizzle-orm";
-import { defineTool, DomainError, type Tool, type ToolContext } from "warren/server";
+import { defineTool, DomainError, type Tool, type ToolContext, withImages } from "warren/server";
 import { z } from "zod";
-import { daysBetween, logDay, parseDay, round } from "../dates.js";
+import { addDays, daysBetween, g, logDay, parseDay, round } from "../dates.js";
 import * as foodSvc from "../foods.js";
 import * as logSvc from "../log.js";
 import { type Food, foods, MEALS, NUTRIENTS, type Nutrients, nutrientsOf } from "../schema.js";
-import { dayLines, entryLine, foodLine, totalLine } from "./context.js";
+import { dayLines, entryLine, entryLines, foodLine, totalLine } from "./context.js";
+import { clock, entryPhotos } from "./recall.js";
 
 // --- the agent's tools ----------------------------------------------------------------------------
 
@@ -102,6 +103,23 @@ function each<T>(ctx: ToolContext, fn: () => T): T {
   return ctx.db.transaction(() => fn());
 }
 
+/** What doesn't add up in a food's numbers per 100 g, usually a misread label. */
+export function labelProblems(n: Partial<Nutrients>): string[] {
+  const out: string[] = [];
+  const { kcal, protein_g: p, carb_g: c, fat_g: f, sugar_g: sugar, sat_fat_g: sat } = n;
+  if (sugar != null && c != null && sugar > c + 0.5) out.push(`sugar (${g(sugar)} g) is more than carbs (${g(c)} g)`);
+  if (sat != null && f != null && sat > f + 0.5) out.push(`saturated fat (${g(sat)} g) is more than total fat (${g(f)} g)`);
+  const mass = (p ?? 0) + (c ?? 0) + (f ?? 0);
+  if (mass > 101) out.push(`protein, carbs and fat come to ${g(round(mass, 1))} g in 100 g`);
+  if (kcal != null && p != null && c != null && f != null) {
+    const fromMacros = 4 * p + 4 * c + 9 * f;
+    if (Math.abs(fromMacros - kcal) > Math.max(40, 0.3 * kcal)) {
+      out.push(`the macros make about ${Math.round(fromMacros)} kcal per 100 g, not ${g(kcal)}`);
+    }
+  }
+  return out;
+}
+
 function perHundred(n: z.infer<typeof FoodNutrients>): Partial<Nutrients> {
   const values = Object.fromEntries(NUTRIENTS.filter((k) => n[k] !== undefined).map((k) => [k, n[k]!]));
   if (n.basis === "per_100g") return values;
@@ -109,6 +127,9 @@ function perHundred(n: z.infer<typeof FoodNutrients>): Partial<Nutrients> {
   const factor = 100 / n.serving_grams;
   return Object.fromEntries(Object.entries(values).map(([k, v]) => [k, round(v * factor, 2)]));
 }
+
+const GET_ENTRIES_LIMIT = 60;
+const VIEW_PHOTOS_LIMIT = 4;
 
 const agentTools: Tool[] = [
   defineTool({
@@ -134,18 +155,6 @@ const agentTools: Tool[] = [
         }
       }
       return out.join("\n");
-    },
-  }),
-
-  defineTool({
-    name: "get_entries",
-    description: "List one day's log entries (with ids) and totals.",
-    input: z.strictObject({ date: z.string().describe("YYYY-MM-DD") }),
-    writes: false,
-    expose: ["agent"],
-    run(ctx, args) {
-      const day = parseDay(args.date);
-      return `Entries on ${day}:\n${dayLines(ctx.db, ctx.user, day).join("\n")}`;
     },
   }),
 
@@ -319,7 +328,9 @@ const agentTools: Tool[] = [
         { food_id: args.food_id, name: args.name, brand: args.brand, nutrients, servings, aliases },
         ctx.changes,
       );
-      return `${created ? "Created" : "Updated"} ${foodLine(food)}`;
+      const problems = nutrients ? labelProblems(nutrientsOf(food)) : [];
+      const check = problems.length ? `\nThese numbers don't add up: ${problems.join("; ")}. Check the label again.` : "";
+      return `${created ? "Created" : "Updated"} ${foodLine(food)}${check}`;
     },
   }),
 
@@ -335,6 +346,99 @@ const agentTools: Tool[] = [
     },
   }),
 ];
+
+/** The agent's tools that read the log by date or show photos, which need the household's timezone. */
+function recallTools(timezone: string): Tool[] {
+  return [
+    defineTool({
+      name: "get_entries",
+      description:
+        "List log entries with ids: one day (with totals), a range of days, or entries whose name " +
+        "contains some words, newest first (the last 90 days unless dates are given). " +
+        "Entries marked (photo) were logged from a photo that view_photos can show.",
+      input: z.strictObject({
+        date: z.string().optional().describe("One day, YYYY-MM-DD."),
+        from: z.string().optional().describe("First day of a range, YYYY-MM-DD."),
+        to: z.string().optional().describe("Last day of a range, YYYY-MM-DD. Defaults to today."),
+        name: z.string().optional().describe("Only entries whose name contains this, e.g. 'ebi bar'."),
+      }),
+      writes: false,
+      expose: ["agent"],
+      run(ctx, args) {
+        const today = logDay(ctx.now, timezone);
+        if (args.date !== undefined && args.name === undefined) {
+          const day = parseDay(args.date);
+          return `Entries on ${day}:\n${dayLines(ctx.db, ctx.user, day).join("\n")}`;
+        }
+        let start: string;
+        let end: string;
+        if (args.date !== undefined) start = end = parseDay(args.date);
+        else {
+          end = args.to === undefined ? today : parseDay(args.to);
+          if (args.from !== undefined) start = parseDay(args.from);
+          else if (args.name !== undefined) start = addDays(end, -89);
+          else throw new DomainError("give a date, a from date, or a name");
+        }
+        if (daysBetween(start, end) < 0) throw new DomainError("from must not be after to");
+        if (daysBetween(start, end) > 91) throw new DomainError("a range can cover at most 92 days");
+
+        let items = logSvc.entriesBetween(ctx.db, ctx.user, start, end);
+        const words = args.name?.trim().toLowerCase();
+        if (words) items = items.filter((e) => e.name.toLowerCase().includes(words));
+        const order = (e: { meal: (typeof MEALS)[number] }) => MEALS.indexOf(e.meal);
+        items.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : order(a) - order(b) || a.position - b.position));
+        const heading = words ? `Entries named like "${args.name!.trim()}" from ${start} to ${end}` : `Entries from ${start} to ${end}`;
+        if (!items.length) return `${heading}: none.`;
+        const shown = items.slice(0, GET_ENTRIES_LIMIT);
+        const lines = entryLines(ctx.db, shown);
+        const out = [`${heading}, newest first:`];
+        let day = "";
+        shown.forEach((e, i) => {
+          if (e.date !== day) out.push(`${(day = e.date)}:`);
+          out.push(`  ${lines[i]}`);
+        });
+        if (items.length > shown.length) out.push(`…and ${items.length - shown.length} older; narrow the dates to see them.`);
+        return out.join("\n");
+      },
+    }),
+
+    defineTool({
+      name: "view_photos",
+      description:
+        "Look again at the photos entries were logged from, e.g. when the user asks you to check an " +
+        "earlier meal or a correction depends on what the photo shows.",
+      input: z.strictObject({ entry_ids: z.array(z.number().int()).min(1).max(10) }),
+      writes: false,
+      expose: ["agent"],
+      run(ctx, args) {
+        const found = args.entry_ids.map((id) => logSvc.getEntry(ctx.db, ctx.user, id));
+        const photos = entryPhotos(ctx.db, found);
+        const lines: string[] = [];
+        const shown = new Map<number, { entries: string[]; sentAt: Date | null }>();
+        for (const e of found) {
+          const p = photos.get(e.id);
+          if (!p) {
+            lines.push(`#${e.id} ${e.name}: no photo`);
+            continue;
+          }
+          for (const id of p.fileIds) {
+            if (!shown.has(id) && shown.size >= VIEW_PHOTOS_LIMIT) continue;
+            const seen = shown.get(id) ?? { entries: [], sentAt: p.sentAt };
+            seen.entries.push(`#${e.id} ${e.name}`);
+            shown.set(id, seen);
+          }
+        }
+        if (!shown.size) return lines.join("\n");
+        lines.unshift(`${shown.size === 1 ? "The photo" : `${shown.size} photos`} below.`);
+        const images = [...shown].map(([fileId, s]) => ({
+          fileId,
+          label: `Photo${s.sentAt ? ` sent ${clock(s.sentAt, timezone)}` : ""}, logged as ${s.entries.join(", ")}:`,
+        }));
+        return withImages(lines.join("\n"), images);
+      },
+    }),
+  ];
+}
 
 // --- tools for MCP clients ------------------------------------------------------------------------
 
@@ -484,7 +588,7 @@ function mcpTools(timezone: string): Tool[] {
 }
 
 export function baoTools(timezone: string): Tool[] {
-  return [...agentTools, ...mcpTools(timezone)];
+  return [...agentTools, ...recallTools(timezone), ...mcpTools(timezone)];
 }
 
 /** What the web app shows under a reply for each thing the agent changed. */

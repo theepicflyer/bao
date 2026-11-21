@@ -7,6 +7,7 @@ import { addDays, daysBetween, formatDay, g } from "../dates.js";
 import * as foodSvc from "../foods.js";
 import * as logSvc from "../log.js";
 import { type Entry, type Food, MEALS } from "../schema.js";
+import { entryPhotos, recentExchanges } from "./recall.js";
 
 const num = (value: number | null): string => (value === null ? "?" : value.toFixed(0));
 
@@ -30,13 +31,20 @@ export function foodLine(food: Food): string {
   );
 }
 
-export function entryLine(entry: Entry): string {
+/** An entry in one line; `photo` marks one that view_photos can show. */
+export function entryLine(entry: Entry, photo = false): string {
   const portion = foodSvc.describePortion(entry.servings, entry.serving_label, entry.grams);
+  const note = entry.note?.trim() ? ` — note: ${entry.note.trim().slice(0, 160)}` : "";
   return (
-    `#${entry.id} ${entry.meal}: ${entry.name}${entry.is_estimate ? " (estimate)" : ""} — ` +
+    `#${entry.id} ${entry.meal}: ${entry.name}${entry.is_estimate ? " (estimate)" : ""}${photo ? " (photo)" : ""} — ` +
     `${portion || "portion n/a"} — ${num(entry.kcal)} kcal, ` +
-    `P${num(entry.protein_g)} C${num(entry.carb_g)} F${num(entry.fat_g)}`
+    `P${num(entry.protein_g)} C${num(entry.carb_g)} F${num(entry.fat_g)}${note}`
   );
+}
+
+export function entryLines(db: Db, items: Entry[]): string[] {
+  const photos = entryPhotos(db, items);
+  return items.map((e) => entryLine(e, photos.has(e.id)));
 }
 
 export function totalLine(prefix: string, items: Entry[]): string {
@@ -49,7 +57,7 @@ export function dayLines(db: Db, user: User, day: string): string[] {
   if (!items.length) return ["(nothing logged yet)"];
   const order = (e: Entry) => MEALS.indexOf(e.meal);
   items.sort((a, b) => order(a) - order(b) || a.position - b.position || a.id - b.id);
-  return [...items.map(entryLine), totalLine("Total", items)];
+  return [...entryLines(db, items), totalLine("Total", items)];
 }
 
 function relative(day: string, today: string): string {
@@ -67,6 +75,8 @@ export interface ContextOptions {
   logDate: string;
   includeFoods: boolean;
   includeFrequent: boolean;
+  /** The person's recent exchanges in other conversations; given to a new thread. */
+  includeRecent: boolean;
 }
 
 export function buildContext(db: Db, user: User, options: ContextOptions): string {
@@ -101,6 +111,13 @@ export function buildContext(db: Db, user: User, options: ContextOptions): strin
       }
     }
   }
+  if (options.includeRecent) {
+    const recent = recentExchanges(db, user, options.now, options.timezone);
+    if (recent.length) {
+      lines.push("Your last exchanges with this user, in earlier conversations (oldest first):");
+      lines.push(...recent);
+    }
+  }
   for (const day of logDate === today ? [logDate] : [logDate, today]) {
     lines.push(`Entries on ${day} (${relative(day, today)}):`);
     lines.push(...dayLines(db, user, day).map((line) => `- ${line}`));
@@ -111,7 +128,7 @@ export function buildContext(db: Db, user: User, options: ContextOptions): strin
 
 /**
  * Warren's context hook. The household food list is long, so it is sent once per thread and again
- * only when it changes; the person's frequent foods go on the first turn.
+ * only when it changes; the person's frequent foods and recent exchanges go on the first turn.
  */
 export function agentContext(timezone: string) {
   return ({ db, user, scope, now, firstTurn, state }: ContextArgs) => {
@@ -123,6 +140,7 @@ export function agentContext(timezone: string) {
         logDate: scope,
         includeFoods: state.foods !== fingerprint,
         includeFrequent: firstTurn,
+        includeRecent: firstTurn,
       }),
       state: { foods: fingerprint },
     };

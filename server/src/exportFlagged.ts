@@ -2,8 +2,9 @@
  * Export the assistant turns worth a second look, to review where Bao goes wrong.
  *
  * A turn is flagged when it got a thumbs down, ended in an error (or never finished), or logged
- * entries that someone later changed or deleted by hand. Each comes with what was said, the full
- * transcript, the rating note, what it changed, the hand edits and the paths of its photos.
+ * entries that someone later changed or deleted, by hand or by asking Bao in a later turn. Each comes
+ * with what was said, the full transcript, the rating note, what it changed, the later corrections
+ * and the paths of its photos.
  *
  *   node dist/exportFlagged.js --db /data/backup/app.sqlite
  *   node dist/exportFlagged.js --db app.sqlite --since 2026-11-01 --format markdown --out flagged.md
@@ -63,10 +64,32 @@ export function flaggedTurns(db: Database.Database, filesDir: string, since?: st
       }));
     }
 
+    let corrections: Row[] = [];
+    if (logged.length) {
+      const marks = logged.map(() => "?").join(",");
+      corrections = (
+        db
+          .prepare(
+            `SELECT c.*, t.user_text FROM warren_changes c JOIN warren_turns t ON t.id = c.turn_id
+             WHERE c.table_name = 'entries' AND c.action != 'create' AND c.row_id IN (${marks})
+               AND c.turn_id > ? AND t.undone_at IS NULL ORDER BY c.id`,
+          )
+          .all(...logged, t.id) as Row[]
+      ).map((c) => ({
+        turn_id: c.turn_id,
+        user_text: c.user_text,
+        entry_id: c.row_id,
+        action: c.action,
+        before: json(c.before),
+        after: json(c.after),
+      }));
+    }
+
     const reasons: string[] = [];
     if (t.rating === -1) reasons.push("thumbs_down");
     if (t.status === "error" || t.status === "running") reasons.push(t.status === "error" ? "error" : "unfinished");
     if (edits.length) reasons.push("hand_edited");
+    if (corrections.length) reasons.push("corrected_later");
     if (!reasons.length) continue;
 
     const messages = (json(t.messages) ?? []) as Row[];
@@ -93,6 +116,7 @@ export function flaggedTurns(db: Database.Database, filesDir: string, since?: st
       photos,
       changes,
       hand_edits: edits,
+      corrections,
       messages,
     });
   }
@@ -113,7 +137,7 @@ export function toMarkdown(turns: Row[]): string {
     if (t.undone) lines.push("- Undone");
     for (const photo of t.photos) lines.push(`- Photo: ${photo ?? "(missing)"}`);
     lines.push("", "**User:**", "", t.user_text || "(no text)", "", "**Reply:**", "", t.reply_text || "(none)", "");
-    for (const [title, key] of [["Changes", "changes"], ["Hand edits", "hand_edits"], ["Transcript", "messages"]] as const) {
+    for (const [title, key] of [["Changes", "changes"], ["Hand edits", "hand_edits"], ["Later corrections", "corrections"], ["Transcript", "messages"]] as const) {
       if (t[key].length) lines.push(`**${title}:**`, "", "```json", JSON.stringify(t[key], null, 2), "```", "");
     }
   }

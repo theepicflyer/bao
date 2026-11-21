@@ -469,6 +469,27 @@ export const CASES: Case[] = [
       total_kcal: [845, 910],
     },
   ),
+  // Photo 13 again, made-up follow-up: after the sheet is reopened, the user asks Bao to look at the
+  // photo again. It has to find the photo from the entry, not log the tofu twice.
+  Case(
+    "recall_p13_tofu_photo_again",
+    ["photo", "edit", "multi_turn", "recall"],
+    [
+      Msg("and this tofu side too", { photo: "photo13.jpg" }),
+      Msg("the tofu at lunch: look at the photo again. was it really that much? fix it if not", { new_thread: true }),
+    ],
+    {
+      now: "2026-09-22T12:40",
+      log_date: "2026-09-22",
+      ours: ours_at("2026-09-22T04:40"),
+      entries: [est("2026-09-22", "lunch", "Chicken and pork don", 800, 40, 90, 28)],
+      check_dates: ["2026-09-22"],
+      expect: [Item("don", "lunch", { kcal: [799, 801] }), Item("tofu", "lunch", { kcal: [40, 110], from_first_turn: true })].concat(
+        anything("lunch", 1),
+      ),
+      tools_called: ["view_photos"],
+    },
+  ),
   // Photo 14: glazed chicken thigh and fries, grams judged. Handled well.
   Case("prod_p14_chicken_thigh_fries", ["photo", "meal", B], [Msg("", { photo: "photo14.jpg" })], {
     now: "2026-09-22T19:11",
