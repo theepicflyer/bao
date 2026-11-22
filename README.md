@@ -25,7 +25,7 @@ You host it yourself. It runs as one Docker container, and you install it on you
 - **Local food that's already there.** About 2,700 Singapore foods from the Health Promotion Board, hawker dishes and kopi orders included, at hawker portions. About 13,600 more generic foods from the USDA.
 - **Your own foods.** Save the things you buy often, or snap a nutrition label and Bao saves it for you. Your own foods win when you're vague: "a bowl of yogurt" means your usual yogurt.
 - **Quick adds.** Pinned foods, frequent and recent foods, saved meals, and "same as yesterday".
-- **A chat with Bao.** Send text or up to six photos. It logs right away, and every reply has an undo button and a thumbs up or down. It can also change past days.
+- **A chat with Bao.** Send text or up to six photos. It logs right away, and every reply has an undo button and a thumbs up or down. It can also change past days, find what you ate on any day, look again at the photo an entry came from, and remembers what you said in the last day even after you close the chat. When your words and your photo don't match, it says so and asks.
 - **Two people, separate logs.** You share the food list, but each person has their own log, targets and quick adds.
 - **A daily reminder** if you want one. It's a phone notification at the time you choose, and only when a main meal isn't logged yet. It works on Android in Chrome, and on iPhone (iOS 16.4 or later) once Bao is on your Home Screen.
 - **History.** Averages, daily calories against your target, macros per day and where your calories come from. On a laptop it spreads out into a dashboard covering 14, 30 or 90 days.
@@ -35,7 +35,7 @@ The look comes from Burrow, a small design system shared with the household's ot
 
 ## How good is the assistant?
 
-It's tested against 91 cases: everyday text messages, follow-up corrections, nutrition labels, 29 real meal photos, and real mistakes it has made. Simple text logging is close to perfect. Judging portion sizes from photos is the hard part.
+It's tested against 94 cases: everyday text messages, follow-up corrections, nutrition labels, 29 real meal photos, and real mistakes it has made. Simple text logging is close to perfect. Judging portion sizes from photos is the hard part.
 
 | model | cases passed | cost per case |
 |---|---|---|
@@ -145,7 +145,7 @@ Where things are:
 
 ### Reviewing the assistant's mistakes
 
-Bao keeps each reply's rating, any error, and the app version that made it. It also keeps a record whenever someone fixes by hand an entry the assistant logged. To collect the turns worth a look (thumbs down, failed, or fixed by hand) into one file:
+Bao keeps each reply's rating, any error, and the app version that made it. It also keeps a record whenever someone fixes by hand an entry the assistant logged. To collect the turns worth a look (thumbs down, failed, or with entries fixed later, by hand or by asking Bao) into one file:
 
 ```bash
 docker compose exec bao node dist/exportFlagged.js --db /data/backup/app.sqlite --since 2026-11-01 --format markdown --out /data/flagged.md

@@ -3,6 +3,8 @@ import { saveImage, schema as warren } from "warren/server";
 import sharp from "sharp";
 import { expect, test } from "vitest";
 import { buildContext } from "../src/agent/context.js";
+import { recentExchanges } from "../src/agent/recall.js";
+import { labelProblems } from "../src/agent/tools.js";
 import { SYSTEM_PROMPT } from "../src/agent/systemPrompt.js";
 import * as foodSvc from "../src/foods.js";
 import * as logSvc from "../src/log.js";
@@ -30,7 +32,7 @@ test("a turn logs through the tools, and the next turn replays it byte for byte"
   const first = claude.requests[0]!;
   expect(first.system).toEqual([{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }]);
   expect(first.tools.map((t: any) => t.name)).toEqual([
-    "delete_entries", "delete_food", "get_entries", "log_entries", "save_food", "search_foods", "update_entries",
+    "delete_entries", "delete_food", "get_entries", "log_entries", "save_food", "search_foods", "update_entries", "view_photos",
   ]);
   expect(first.messages[0].content.at(-1).text).toContain("<context>");
   // the tool result the model read
@@ -207,7 +209,7 @@ test("the context names today, yesterday and the log date", () => {
   logSvc.addEntry(db, alice, { day: "2026-10-20", meal: "dinner", food_id: foodId("Laksa") });
   logSvc.addEntry(db, alice, { day: "2026-10-20", meal: "breakfast", food_id: foodId("Kopi C") });
   const at = (iso: string) =>
-    buildContext(db, alice, { now: new Date(iso), timezone: "Asia/Singapore", logDate: "2026-10-20", includeFoods: false, includeFrequent: true });
+    buildContext(db, alice, { now: new Date(iso), timezone: "Asia/Singapore", logDate: "2026-10-20", includeFoods: false, includeFrequent: true, includeRecent: false });
 
   const text = at("2026-10-21T01:40:00Z"); // 09:40 in Singapore
   expect(text).toContain("Today: Wed 21 Oct 2026 (2026-10-21), 09:40 Singapore time.");
@@ -225,4 +227,108 @@ test("the context names today, yesterday and the log date", () => {
   // 00:40 on the 21st: "today" still means the 20th
   expect(at("2026-10-20T16:40:00Z")).toContain('"today" and "tonight" mean Tue 20 Oct 2026 (2026-10-20).');
   expect(foodSvc.oursFingerprint([])).toHaveLength(16);
+});
+
+test("a later conversation can look again at the photo an entry was logged from", async () => {
+  const bao0 = testBao();
+  const laksa = bao0.foodId("Laksa");
+  const claude = new FakeClaude([
+    use("tu_1", "log_entries", { entries: [{ meal: "lunch", food_id: laksa }] }),
+    say("Logged."),
+    use("tu_2", "log_entries", { entries: [{ meal: "lunch", name: "Tofu", kcal: 90, note: "Bowl beside the laksa, est. 150 g" }] }),
+    say("Added the tofu."),
+    use("tu_3", "get_entries", { name: "TOFU", to: "2026-03-04" }),
+    use("tu_4", "view_photos", { entry_ids: [1, 2, 3] }),
+    say("It was silken tofu."),
+  ]);
+  const bao = testBao({ anthropic: claude });
+  const alice = await bao.as("Alice");
+  const jpeg = await sharp({ create: { width: 8, height: 8, channels: 3, background: "#888" } }).jpeg().toBuffer();
+  const photo = (await saveImage(bao.db, bao.app.config.dataDir, { userId: bao.user("Alice").id, data: jpeg })).id;
+  const first = await turn(bao, alice, "lunch", { fileIds: [photo] });
+  // words after the photo, in the same conversation: the entry names no photo but came from it
+  await turn(bao, alice, "and the tofu", { threadId: first[0].thread_id });
+  logSvc.addEntry(bao.db, bao.user("Alice"), { day: DAY, meal: "snacks", food_id: bao0.foodId("Kopi C") });
+  expect(bao.db.select().from(entries).all().map((e) => [e.id, e.photo_id])).toEqual([[1, photo], [2, null], [3, null]]);
+
+  const later = await turn(bao, alice, "the tofu yesterday was silken, see the photo again", { day: "2026-03-04" });
+  expect(later[0].thread_id).not.toBe(first[0].thread_id);
+  const found = claude.requests[5]!.messages.at(-1).content[0].content as string;
+  expect(found.split("\n")[0]).toBe('Entries named like "TOFU" from 2025-12-05 to 2026-03-04, newest first:');
+  expect(found).toContain(`${DAY}:\n  #2 lunch: Tofu (estimate) (photo) — portion n/a — 90 kcal, P? C? F? — note: Bowl beside the laksa, est. 150 g`);
+  const shown = claude.requests[6]!.messages.at(-1).content[0].content as any[];
+  expect(shown.map((b) => b.type)).toEqual(["text", "text", "image"]);
+  expect(shown[0].text).toBe("The photo below.\n#3 Kopi C: no photo");
+  expect(shown[1].text).toMatch(/^Photo sent \w{3} \d{2} \w{3} 2026 \d{2}:\d{2}, logged as #1 Laksa, #2 Tofu:$/);
+  expect(shown[2].source).toEqual({ type: "base64", media_type: "image/jpeg", data: expect.any(String) });
+  // stored as a reference, like a message's photos
+  const stored = bao.db.select().from(warren.turns).where(eq(warren.turns.id, later.at(-1).turn.id)).get()!;
+  expect(JSON.stringify(stored.messages)).toContain(`{"type":"image","source":{"type":"file_ref","file_id":${photo}}}`);
+
+  // someone else's entries stay theirs
+  const bobClaude = new FakeClaude([use("tu_5", "view_photos", { entry_ids: [1] }), say("No.")]);
+  const withBob = testBao({ anthropic: bobClaude });
+  await turn(withBob, await withBob.as("Bob"), "show me");
+  expect(bobClaude.requests[1]!.messages.at(-1).content[0]).toMatchObject({ is_error: true, content: "Error: No entry with id 1" });
+});
+
+test("get_entries reads a day, a range, or entries by name", async () => {
+  const bao0 = testBao();
+  const claude = new FakeClaude([
+    use("tu_1", "get_entries", { from: "2026-03-01", to: "2026-03-02" }),
+    use("tu_2", "get_entries", { name: "kopi", from: "2026-03-01", to: "2026-03-03" }),
+    use("tu_3", "get_entries", { to: "2026-03-03" }),
+    use("tu_4", "get_entries", { from: "2025-01-01", to: "2026-03-03" }),
+    say("Ok."),
+  ]);
+  const bao = testBao({ anthropic: claude });
+  const alice = bao.user("Alice");
+  logSvc.addEntry(bao.db, alice, { day: "2026-03-01", meal: "dinner", food_id: bao0.foodId("Laksa") });
+  logSvc.addEntry(bao.db, alice, { day: "2026-03-01", meal: "breakfast", food_id: bao0.foodId("Kopi C") });
+  logSvc.addEntry(bao.db, alice, { day: "2026-03-02", meal: "breakfast", food_id: bao0.foodId("Kopi C") });
+  await turn(bao, await bao.as("Alice"), "what did I have?");
+  const result = (i: number) => claude.requests[i]!.messages.at(-1).content[0].content as string;
+  expect(result(1)).toBe(
+    "Entries from 2026-03-01 to 2026-03-02, newest first:\n2026-03-02:\n  #3 breakfast: Kopi C — 1 × cup (250 g) — 108 kcal, P3 C18 F3\n" +
+      "2026-03-01:\n  #2 breakfast: Kopi C — 1 × cup (250 g) — 108 kcal, P3 C18 F3\n  #1 dinner: Laksa — 1 × bowl (604 g) — 417 kcal, P20 C42 F18",
+  );
+  expect(result(2).split("\n").filter((l) => l.startsWith("  #")).map((l) => l.slice(2, 4))).toEqual(["#3", "#2"]);
+  expect(result(3)).toBe("Error: give a date, a from date, or a name");
+  expect(result(4)).toBe("Error: a range can cover at most 92 days");
+});
+
+test("save_food says when a label's numbers don't add up", () => {
+  // a misread soya beancurd label: 13 g sugar out of 1.9 g carbs
+  expect(labelProblems({ kcal: 78, protein_g: 15, carb_g: 1.9, fat_g: 1.1, sugar_g: 13, sat_fat_g: 0.2 })).toEqual([
+    "sugar (13 g) is more than carbs (1.9 g)",
+  ]);
+  expect(labelProblems({ kcal: 400, protein_g: 5, carb_g: 20, fat_g: 3, sat_fat_g: 4 })).toEqual([
+    "saturated fat (4 g) is more than total fat (3 g)",
+    "the macros make about 127 kcal per 100 g, not 400",
+  ]);
+  expect(labelProblems({ kcal: 58, protein_g: 3.5, carb_g: 4.8, fat_g: 1.9, sugar_g: 4.8 })).toEqual([]);
+  expect(labelProblems({ kcal: 58 })).toEqual([]);
+});
+
+test("a new conversation is told the last exchanges from earlier ones", async () => {
+  const claude = new FakeClaude([say("Which estimates look too high?"), say("Halved them."), say("Ok.")]);
+  const bao = testBao({ anthropic: claude });
+  const alice = await bao.as("Alice");
+  const context = (i: number) => claude.requests[i]!.messages.at(-1).content.at(-1).text as string;
+  await turn(bao, alice, "way over on the estimates.");
+  expect(context(0)).not.toContain("earlier conversations");
+
+  const next = await turn(bao, alice, "all of them");
+  expect(context(1)).toMatch(
+    /Your last exchanges with this user, in earlier conversations \(oldest first\):\n- \w{3} \d{2} \w{3} \d{4} \d{2}:\d{2}, app on 2026-03-03\n  User: way over on the estimates.\n  You: Which estimates look too high\?\n/,
+  );
+  // once per conversation
+  await turn(bao, alice, "thanks", { threadId: next[0].thread_id });
+  expect(context(2)).not.toContain("earlier conversations");
+
+  // only the last day's
+  const user = bao.user("Alice");
+  expect(recentExchanges(bao.db, user, new Date(), "Asia/Singapore")).toHaveLength(9);
+  bao.db.update(warren.turns).set({ createdAt: new Date(Date.now() - 25 * 3_600_000) }).run();
+  expect(recentExchanges(bao.db, user, new Date(), "Asia/Singapore")).toEqual([]);
 });

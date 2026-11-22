@@ -325,6 +325,38 @@ const MADE_UP: Case[] = [
       ],
     },
   ),
+  // --- earlier conversations and older entries -----------------------------------
+  // Bao asked which estimates were off; the answer comes after the sheet was closed and reopened.
+  Case(
+    "answer_in_new_conversation",
+    ["text", "edit", "multi_turn", "recall"],
+    [Msg("the dinner estimates are off, can you fix them"), Msg("all of them. about half each", { new_thread: true })],
+    {
+      entries: [
+        { date: TODAY, meal: "dinner", name: "Grilled prawns", kcal: 220, protein_g: 40, carb_g: 2, fat_g: 6 },
+        { date: TODAY, meal: "dinner", name: "Beef tenderloin", kcal: 520, protein_g: 70, carb_g: 4, fat_g: 24 },
+        { date: TODAY, meal: "dinner", name: "Saffron pilaf rice", kcal: 520, protein_g: 10, carb_g: 90, fat_g: 12 },
+      ],
+      expect: [
+        Item("prawn", "dinner", { kcal: [90, 130] }),
+        Item("beef", "dinner", { kcal: [220, 300] }),
+        Item("pilaf|rice", "dinner", { kcal: [220, 300] }),
+      ],
+    },
+  ),
+  Case("edit_entry_last_week", ["text", "edit", "dates", "recall"], [Msg("the laksa I had last week, I only finished half of it")], {
+    entries: [
+      ["2026-10-15", "dinner", "sg:Laksa", null],
+      [TODAY, "lunch", "sg:Steamed chicken rice", null],
+    ],
+    check_dates: [TODAY, "2026-10-15"],
+    expect: [
+      Item("laksa", "dinner", { date: "2026-10-15", kcal: [190, 230] }),
+      Item("chicken rice", "lunch", { kcal: [400, 650] }),
+    ],
+    tools_called: ["get_entries"],
+  }),
+
   // --- regressions: patterns that went wrong in real use, with made-up meals ---------
   Case(
     "reg_yesterday_when_log_date_is_yesterday",

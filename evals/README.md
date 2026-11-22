@@ -58,6 +58,7 @@ Medium is no better than low. High does better on photos and on the real cases B
 - Corrections: "actually it was a large plate, make it 1.5", "make it siew dai" or "oh it was roasted chicken rice, not steamed" has to change the entry that's already there, not add a second one.
 - Dishes the database doesn't have: "unagi fried rice" must include the eel, not get logged as plain egg fried rice.
 - A question ("how much protein have I had today?") must not change anything.
+- Earlier conversations: an answer sent after the chat was closed and reopened ("all of them. about half each") still answers Bao's question, and "the laksa I had last week" is found and changed in place.
 
 **Real mistakes (46 cases).** Every time Bao got something wrong in real use, it became a case, with the original message. Some are rewritten with made-up meals to test the same pattern again. For example:
 
@@ -125,14 +126,14 @@ More options:
 
 The cases are in two files in `server/evals/`:
 
-- `cases.ts`: 45 made-up cases, mostly typed messages.
-- `prodCases.ts`: 46 cases from real use, including every photo case. The photos are in `evals/photos/`. Each case keeps the real message, the household's own foods at the time and the log entries the message referred to. Dates are moved five weeks earlier, so weekdays still match what the message says.
+- `cases.ts`: 47 made-up cases, mostly typed messages.
+- `prodCases.ts`: 47 cases from real use, including every photo case, and one made-up follow-up on a real photo (`recall_p13_tofu_photo_again`). The photos are in `evals/photos/`. Each case keeps the real message, the household's own foods at the time and the log entries the message referred to. Dates are moved five weeks earlier, so weekdays still match what the message says.
 
 `spec.ts` defines what a case can say. Each case starts from a fresh copy of the food database and can add:
 
 - `ours`: household foods, and `entries`: log entries that already exist before the message.
 - `now` and `log_date`: when the message is sent and which day the app is showing. These are separate because people often log yesterday.
-- `msgs`: one or more messages, each with optional photos.
+- `msgs`: one or more messages, each with optional photos. `new_thread` sends a message as if the chat had been closed and reopened, so it starts a new conversation.
 
 Then it checks:
 
@@ -140,7 +141,7 @@ Then it checks:
 - `total_kcal`: a calorie range for the day or one meal. `ref_kcal` is the reference behind the "calories off by" figure.
 - `forbid`: names that must not appear, such as "poke" in the tau pok case.
 - `foods`: household foods that should exist afterwards, such as a saved label with its exact values.
-- `reply_forbid`, `max_tool_calls`, `max_tool_errors`: limits on the reply and on how many steps Bao takes.
+- `reply_forbid`, `max_tool_calls`, `max_tool_errors`: limits on the reply and on how many steps Bao takes. `tools_called`: tools Bao must use, such as `view_photos` when asked to look at a photo again.
 
 Tags say what kind of case it is: `text`, `photo`, `meal`, `label`, `edit`. `regression` marks a case Bao got wrong in real use, and `baseline` a real case it got right, so a change that fixes one mistake but breaks something that worked shows up. Other tags name the pattern, such as `stale_date`, `split`, `near_name` or `small_portion`.
 
