@@ -37,7 +37,7 @@
 			<div>
 				<div class="flex items-baseline justify-between gap-2 px-1">
 					<span class="label"><NutrientIcon kind={m.kind} size={14} />{m.label}</span>
-					<span class="small bh-num text-ink-muted">
+					<span class="small tabular text-ink-muted">
 						{#if day}
 							<b class="text-ink">{day.entries ? `${grams(day[m.key])} g` : 'Not logged'}</b>
 						{:else}

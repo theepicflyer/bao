@@ -1,16 +1,16 @@
 <script lang="ts">
-	import NutrientIcon from './NutrientIcon.svelte';
+	import FoodRow from './FoodRow.svelte';
 	import Sheet from './Sheet.svelte';
 	import ThumbIcon from './ThumbIcon.svelte';
 	import Field from '../burrow/Field.svelte';
 	import Icon from '../burrow/Icon.svelte';
 	import { Loader, Mascot, Peek, type Mood } from 'warren/burrow';
-	import type { Turn, TurnChange } from '../types.ts';
+	import { MEAL_LABEL, type Turn, type TurnChange } from '../types.ts';
 	import { get, post, put } from 'warren/web';
 	import { sendTurn, TOOL_LABEL } from '../agent.ts';
 	import { prepareImage } from '../photo.ts';
 	import { parseReply, type Span } from '../reply.ts';
-	import { dayLabel, kcal } from '../format.ts';
+	import { countText, dayLabel, portionText } from '../format.ts';
 	import { session, toasts } from '../state.svelte.ts';
 	import { tick } from 'svelte';
 	import { fly, haptic, scale } from 'warren/web';
@@ -267,40 +267,48 @@
 		return turn.changes.length && !turn.undone ? 'joy' : 'happy';
 	}
 
-	function foodLabel(c: TurnChange): string {
-		return { create: 'New food', update: 'Updated', delete: 'Deleted' }[c.action];
+	interface ChangeGroup {
+		/** "Logged 4 to lunch", "Saved 2 foods": the card's heading when it is the only group. */
+		title: string;
+		/** "Logged to lunch", "Saved": the group's label when a card mixes kinds of change. */
+		label: string;
+		changes: TurnChange[];
 	}
 
-	// Removed entries are struck through; a changed one is named only when the card also adds some.
-	function marksChanged(changes: TurnChange[]): boolean {
-		return changes.some((c) => c.table === 'entries' && c.action === 'create');
-	}
+	const VERB: Record<string, [string, string]> = {
+		'foods create': ['Saved', ''],
+		'foods update': ['Updated', ''],
+		'foods delete': ['Deleted', ''],
+		'entries create': ['Logged', 'to'],
+		'entries update': ['Changed', 'in'],
+		'entries delete': ['Removed', 'from']
+	};
 
-	// A card with more than one kind of food change labels each food row; otherwise the heading says it.
-	function mixedFoods(changes: TurnChange[]): boolean {
-		return new Set(changes.filter((c) => c.table === 'foods').map((c) => c.action)).size > 1;
-	}
-
-	// The card's heading, one Tag each: "Saved 3 foods", "Logged 4", "Removed 1".
-	function changesTitle(changes: TurnChange[]): string[] {
-		const verbs: Record<string, [string, string]> = {
-			'foods create': ['Saved', ' food'],
-			'foods update': ['Updated', ' food'],
-			'foods delete': ['Deleted', ' food'],
-			'entries create': ['Logged', ''],
-			'entries update': ['Changed', ''],
-			'entries delete': ['Removed', '']
-		};
-		const counts = new Map<string, number>();
+	// What a turn changed, grouped by kind (and, for entries, by meal), in the order it happened.
+	function changeGroups(changes: TurnChange[]): ChangeGroup[] {
+		const groups = new Map<string, TurnChange[]>();
 		for (const c of changes) {
-			const key = `${c.table} ${c.action}`;
-			counts.set(key, (counts.get(key) ?? 0) + 1);
+			const key = `${c.table} ${c.action}${c.table === 'entries' && c.meal ? ` ${c.meal}` : ''}`;
+			groups.set(key, [...(groups.get(key) ?? []), c]);
 		}
-		return [...counts]
-			.map(([key, n]) => {
-				const [verb, noun] = verbs[key];
-				return `${verb} ${n}${noun}${noun && n !== 1 ? 's' : ''}`;
-			});
+		return [...groups.values()].map((list) => {
+			const c = list[0];
+			const [verb, prep] = VERB[`${c.table} ${c.action}`];
+			const n = list.length;
+			const where = c.table === 'entries' && c.meal ? ` ${prep} ${MEAL_LABEL[c.meal].toLowerCase()}` : '';
+			const what = c.table === 'foods' ? ` food${n === 1 ? '' : 's'}` : '';
+			return { title: `${verb} ${n}${what}${where}`, label: `${verb}${where}`, changes: list };
+		});
+	}
+
+	// One heading for the card: the group's, or every group's in turn when it mixes kinds of change.
+	function changesHeading(groups: ChangeGroup[]): string {
+		return groups.map((g, i) => (i ? g.title[0].toLowerCase() + g.title.slice(1) : g.title)).join(', ');
+	}
+
+	function changePortion(c: TurnChange): string {
+		if (c.table === 'foods') return c.serving ? `per ${countText(1, c.serving)}` : '';
+		return portionText(c.servings ?? null, c.serving_label ?? null, c.grams ?? null);
 	}
 </script>
 
@@ -466,40 +474,35 @@
 				{/if}
 			</div>
 			{#if turn.changes.length}
-				<div class="mk-rise-in mt-1.5 ml-12 rounded-[var(--radius-md)] border-2 border-line px-3 py-1.5 transition-opacity {turn.undone ? 'opacity-60' : ''}">
-					<div class="flex items-center justify-between gap-2">
-						<span class="bh-tags">{#each changesTitle(turn.changes) as t (t)}<span class="bh-tag">{t}</span>{/each}</span>
+				{@const groups = changeGroups(turn.changes)}
+				<!-- Burrow's ChangeCard: a plain heading, Undo, then a food row for each change, as on Today but without tiles -->
+				<section class="bh-changes mk-rise-in mt-1.5 ml-12 {turn.undone ? 'is-undone' : ''}" aria-label="What Bao changed">
+					<header class="bh-changes__head">
+						<span class="bh-changes__title">{changesHeading(groups)}</span>
 						{#if turn.undone}
-							<span class="small py-2 text-ink-muted">Undone</span>
+							<span class="bh-changes__undone">Undone</span>
 						{:else}
 							<button class="bh-btn wn-press bh-btn--ghost bh-btn--sm -mr-2" onclick={() => undo(turn)}>Undo</button>
 						{/if}
-					</div>
-					<ul class="small divide-y divide-line {turn.undone ? 'line-through' : ''}">
-						{#each turn.changes as c, i (i)}
-							{@const removed = c.action === 'delete'}
-							<li class="flex items-start gap-2 py-1.5 {removed ? 'text-ink-muted line-through' : ''}">
-								{#if c.table === 'foods'}
-									{@const detail = [mixedFoods(turn.changes) ? foodLabel(c) : '', c.serving ? `per ${c.serving}` : ''].filter(Boolean)}
-									<div class="min-w-0 flex-1">
-										{#if removed || turn.undone}
-											<span class="font-semibold">{c.name ?? '–'}</span>
-										{:else}
-											<a href="/foods/{c.row_id}" class="font-semibold text-ink underline decoration-line underline-offset-2">{c.name ?? '–'}</a>
-										{/if}
-										{#if detail.length}<p class="flex flex-wrap gap-x-2 text-ink-muted">{#each detail as d (d)}<span>{d}</span>{/each}</p>{/if}
-										{#if c.aliases?.length}<p class="text-ink-muted">Answers to {c.aliases.map((a) => `“${a}”`).join(', ')}</p>{/if}
-									</div>
-								{:else}
-									<span class="min-w-0 flex-1 truncate">{#if c.action === 'update' && marksChanged(turn.changes)}<span class="text-ink-muted">Changed </span>{/if}{c.name ?? '–'}</span>
-								{/if}
-								{#if c.kcal != null}
-									<span class="bh-num shrink-0 font-semibold"><NutrientIcon kind="energy" labelled />{kcal(c.kcal)}</span>
-								{/if}
-							</li>
+					</header>
+					<div class="bh-changes__rows">
+						{#each groups as g, gi (gi)}
+							{#if groups.length > 1}<p class="bh-changes__group">{g.label}</p>{/if}
+							{#each g.changes as c, ci (ci)}
+								<FoodRow
+									name={c.name ?? '–'}
+									portion={changePortion(c)}
+									protein={c.protein_g}
+									carbs={c.carb_g}
+									fat={c.fat_g}
+									kcal={c.kcal}
+									removed={c.action === 'delete'}
+									href={c.table === 'foods' && c.action !== 'delete' && !turn.undone ? `/foods/${c.row_id}` : undefined}
+								/>
+							{/each}
 						{/each}
-					</ul>
-				</div>
+					</div>
+				</section>
 			{/if}
 			{#if turn.status === 'ok' || turn.status === 'refused'}
 				{@render rating(turn)}

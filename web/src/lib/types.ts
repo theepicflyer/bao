@@ -99,6 +99,9 @@ export interface QuickItem {
 	servings: number | null;
 	grams: number | null;
 	kcal: number | null;
+	protein_g: number | null;
+	carb_g: number | null;
+	fat_g: number | null;
 }
 
 export interface SavedMealItem {
@@ -132,8 +135,16 @@ export interface TurnChange {
 	action: 'create' | 'update' | 'delete';
 	row_id: number;
 	name: string | null;
-	/** Entries: the entry's calories. Foods: per `serving`. */
+	/** Entries: the entry's own numbers. Foods: per `serving`. */
 	kcal: number | null;
+	protein_g: number | null;
+	carb_g: number | null;
+	fat_g: number | null;
+	/** Entries only: the meal and the portion, worded on the web as on Today (`portionText`). */
+	meal?: Meal | null;
+	servings?: number | null;
+	serving_label?: string | null;
+	grams?: number | null;
 	/** Foods only: the default serving's label, else "100 g". */
 	serving?: string;
 	aliases?: string[];

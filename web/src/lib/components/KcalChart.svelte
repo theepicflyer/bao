@@ -63,8 +63,8 @@
 		{@const d = days[i]}
 		<div class="text-ink-muted">{shortDate(d.date)}</div>
 		{#if d.entries}
-			<div class="body-strong bh-num"><NutrientIcon kind="energy" />{kcal(d.kcal)} kcal</div>
-			<div class="bh-num mt-1 space-y-0.5 text-ink-muted">
+			<div class="body-strong tabular"><NutrientIcon kind="energy" />{kcal(d.kcal)} kcal</div>
+			<div class="tabular mt-1 space-y-0.5 text-ink-muted">
 				<div><NutrientIcon kind="protein" /><b class="text-ink">{Math.round(d.protein_g ?? 0)} g</b> protein</div>
 				<div><NutrientIcon kind="carbs" /><b class="text-ink">{Math.round(d.carb_g ?? 0)} g</b> carbs</div>
 				<div><NutrientIcon kind="fat" /><b class="text-ink">{Math.round(d.fat_g ?? 0)} g</b> fat</div>
@@ -73,7 +73,7 @@
 			<div class="body-strong">Not logged</div>
 		{/if}
 		{#if trend?.[i] != null}
-			<div class="bh-num mt-1 border-t border-line pt-1 text-ink-muted"><b class="text-ink">{kcal(trend[i])}</b> 7-day average</div>
+			<div class="tabular mt-1 border-t border-line pt-1 text-ink-muted"><b class="text-ink">{kcal(trend[i])}</b> 7-day average</div>
 		{/if}
 	{/snippet}
 </BarChart>

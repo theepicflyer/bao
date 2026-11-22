@@ -1,18 +1,52 @@
+<script lang="ts" module>
+	import type { Nutrient } from './NutrientIcon.svelte';
+
+	const NAME: Record<Nutrient, [string, string]> = {
+		protein: ['Protein', 'g'],
+		carbs: ['Carbs', 'g'],
+		fat: ['Fat', 'g'],
+		energy: ['Energy', 'kcal']
+	};
+</script>
+
 <script lang="ts">
 	import NutrientIcon from './NutrientIcon.svelte';
-	import { grams } from '../format.ts';
+	import { grams, kcal as kcalText } from '../format.ts';
 
-	/* Protein, carbs and fat in a row, each after its symbol: for list rows with no room for the words. */
+	/* Burrow's Macros: protein, carbs and fat, then kcal when given. Each number starts right after its symbol in a
+	   fixed 3-digit box, so nothing moves between 1 and 999; kcal is rightmost, so a 4-digit meal total runs on into
+	   the card's padding. A missing value is a muted dash. */
 	let {
 		protein,
 		carbs,
 		fat,
-		unit = ''
-	}: { protein: number | null | undefined; carbs: number | null | undefined; fat: number | null | undefined; unit?: string } = $props();
+		kcal,
+		class: cls = ''
+	}: {
+		protein: number | null | undefined;
+		carbs: number | null | undefined;
+		fat: number | null | undefined;
+		/** Leave out for no kcal cell; null shows a dash. */
+		kcal?: number | null;
+		class?: string;
+	} = $props();
 </script>
 
-<span class="mk-macros bh-num">
-	<span><NutrientIcon kind="protein" size={14} labelled />{grams(protein)}{unit}</span>
-	<span><NutrientIcon kind="carbs" size={14} labelled />{grams(carbs)}{unit}</span>
-	<span><NutrientIcon kind="fat" size={14} labelled />{grams(fat)}{unit}</span>
+{#snippet cell(kind: Nutrient, value: number | null | undefined)}
+	{@const none = value == null}
+	{@const text = kind === 'energy' ? kcalText(value) : grams(value)}
+	{@const [name, unit] = NAME[kind]}
+	<span class="bh-num bh-num--{kind} {kind === 'energy' ? 'bh-num--k' : ''}" title="{name}: {none ? 'not known' : `${text} ${unit}`}">
+		<NutrientIcon {kind} size={14} />
+		<span class="bh-sr">{name} </span>
+		<span class="bh-num__val {none ? 'is-none' : ''}">{text}</span>
+		<span class="bh-sr">{none ? ' not known' : ` ${unit}`}</span>
+	</span>
+{/snippet}
+
+<span class="bh-macros {cls}">
+	{@render cell('protein', protein)}
+	{@render cell('carbs', carbs)}
+	{@render cell('fat', fat)}
+	{#if kcal !== undefined}{@render cell('energy', kcal)}{/if}
 </span>

@@ -89,28 +89,60 @@ export function scale(per100: Nutrients, g: number): Nutrients {
 	return out;
 }
 
-export function servingKcal(food: Food): string {
-	const s = defaultServing(food);
-	const g = s ? s.grams : 100;
-	const v = food.per_100g.kcal;
-	if (v == null) return '';
-	return `${kcal((v * g) / 100)} kcal for ${s ? s.label : '100 g'}`;
+// Words a count leaves as they are: units, and labels that are only a size ("1 large" egg) or a share ("1 whole").
+const SAME = new Set(['g', 'kg', 'mg', 'ml', 'l', 'oz', 'lb', 'lbs', 'tbsp', 'tsp', 'whole', 'large', 'medium', 'small', 'regular', 'fish', 'nfs']);
+const IRREGULAR: Record<string, string> = { half: 'halves', loaf: 'loaves', leaf: 'leaves', knife: 'knives', shelf: 'shelves', gram: 'grams' };
+
+/** A serving word made plural: piece → pieces, glass → glasses, patty → patties, half → halves; oz and whole stay. */
+export function plural(word: string): string {
+	const lower = word.toLowerCase();
+	if (SAME.has(lower) || !/[a-z]$/i.test(word)) return word;
+	if (IRREGULAR[lower]) return IRREGULAR[lower];
+	if (/(ss|sh|ch|x|z)$/i.test(word)) return `${word}es`;
+	if (/s$/i.test(word)) return word;
+	if (/[^aeiou]y$/i.test(word)) return `${word.slice(0, -1)}ies`;
+	return `${word}s`;
 }
 
-/** "1 regular cup", "2 × slice", "150 g". SG FoodID labels already start with "1 ...". */
+/**
+ * A counted serving as a number and its word: "1 bowl", "2 pieces", "2 regular cups", "3 scoops (serving spoon)",
+ * "2 cans/cartons (500ml)". The label's own count multiplies in ("3 oz" twice is "6 oz"); what follows a bracket or
+ * comma describes the serving and stays as it is.
+ */
+export function countText(servings: number, label: string): string {
+	const clean = label.replace(/\((s|es)\)/g, '').trim();
+	const m = /^(\d+(?:\.\d+)?|one|an?)\s+(.*)$/i.exec(clean);
+	const each = m ? (/^\d/.test(m[1]) ? Number(m[1]) : 1) : 1;
+	const unit = m ? m[2] : clean;
+	const n = Math.round(servings * each * 100) / 100;
+	if (n <= 1 || !unit) return `${qty(n)} ${unit}`.trim();
+	// the word to change is the last one before any bracket or comma; "can/carton" changes both
+	const cut = unit.search(/\s*[(,]/);
+	const head = cut < 0 ? unit : unit.slice(0, cut);
+	const tail = cut < 0 ? '' : unit.slice(cut);
+	const words = head.split(' ');
+	words[words.length - 1] = words[words.length - 1].split('/').map(plural).join('/');
+	return `${qty(n)} ${words.join(' ')}${tail}`;
+}
+
+/** What an entry or quick add was: a count of servings ("2 pieces") or, only when weighed, its grams ("75 g"). */
 export function portionText(servings: number | null, label: string | null, g: number | null): string {
-	if (label && servings != null) {
-		const unit = label.replace(/^(1|one|a|an)\s+/i, '').replace(/\((s|es)\)/g, '');
-		if (servings === 1) return /^\d/.test(label) ? label.replace(/\((s|es)\)/g, '') : `1 ${unit}`;
-		return `${qty(servings)} × ${unit}`;
-	}
+	if (label && servings != null) return countText(servings, label);
 	if (g != null) return `${Math.round(g)} g`;
-	return '';
+	return label ?? '';
 }
 
-export function entryPortion(servings: number | null, label: string | null, g: number | null): string {
-	const text = portionText(servings, label, g);
-	return label && g != null && !/^\d+(\.\d+)? ?g$/.test(label) ? `${text} (${Math.round(g)} g)` : text;
+export const entryPortion = portionText;
+
+/** A food's name with its brand in front, as entries name it ("Walker's Shortbread"). */
+export function foodTitle(food: Food): string {
+	return food.brand && !food.name.toLowerCase().includes(food.brand.toLowerCase()) ? `${food.brand} ${food.name}` : food.name;
+}
+
+/** A food's own row: its numbers per its default serving ("per 1 plate"), else per 100 g. */
+export function foodPortion(food: Food): { portion: string; n: Nutrients } {
+	const s = defaultServing(food);
+	return { portion: `per ${s ? countText(1, s.label) : '100 g'}`, n: scale(food.per_100g, s ? s.grams : 100) };
 }
 
 export function initialPortion(

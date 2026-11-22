@@ -211,7 +211,7 @@
 		{#if usage}
 			<div class="flex items-baseline justify-between gap-3">
 				<span class="body text-ink-muted">This month</span>
-				<span class="card-title bh-num text-ink">${usage.month_usd < 1 ? usage.month_usd.toFixed(3) : usage.month_usd.toFixed(2)}</span>
+				<span class="card-title tabular text-ink">${usage.month_usd < 1 ? usage.month_usd.toFixed(3) : usage.month_usd.toFixed(2)}</span>
 			</div>
 			<div class="bh-tags mt-2">
 				<span class="bh-tag">{usage.turns} message{usage.turns === 1 ? '' : 's'}</span>

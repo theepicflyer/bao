@@ -143,7 +143,7 @@
 						<input class="bh-field__input" bind:value={s.label} placeholder="tub, bowl, slice" aria-label="Serving name" />
 					</span>
 					<span class="bh-field__box w-24">
-						<input class="bh-field__input bh-num" type="number" inputmode="decimal" min="1" bind:value={s.grams} aria-label="Grams" />
+						<input class="bh-field__input tabular" type="number" inputmode="decimal" min="1" bind:value={s.grams} aria-label="Grams" />
 						<span class="bh-field__affix">g</span>
 					</span>
 					<button

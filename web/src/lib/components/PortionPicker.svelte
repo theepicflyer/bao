@@ -41,7 +41,7 @@
 	</div>
 
 	{#if value.unit === 'g'}
-		<Field label="Weight" suffix="g" class="bh-num" type="number" inputmode="decimal" min="1" step="1" bind:value={value.grams} />
+		<Field label="Weight" suffix="g" class="tabular" type="number" inputmode="decimal" min="1" step="1" bind:value={value.grams} />
 	{:else}
 		<div class="flex items-center gap-3">
 			<span class="bh-field__label">How many</span>
@@ -51,7 +51,7 @@
 				</button>
 				<span class="bh-field__box w-20">
 					<input
-						class="bh-field__input bh-num text-center"
+						class="bh-field__input tabular text-center"
 						type="number"
 						inputmode="decimal"
 						min="0.25"
@@ -69,10 +69,10 @@
 
 	<div class="mk-well">
 		<div class="flex items-baseline gap-1.5">
-			<span class="card-title bh-num"><NutrientIcon kind="energy" size={20} /><Count value={n.kcal} format={kcal} /></span><span class="small">kcal</span>
-			<span class="small bh-num ml-auto text-ink-muted">{Math.round(totalGrams || 0)} g</span>
+			<span class="card-title tabular"><NutrientIcon kind="energy" size={20} /><Count value={n.kcal} format={kcal} /></span><span class="small">kcal</span>
+			<span class="small tabular ml-auto text-ink-muted">{Math.round(totalGrams || 0)} g</span>
 		</div>
-		<div class="small bh-num mt-1 flex flex-wrap gap-x-4 text-ink-muted">
+		<div class="small tabular mt-1 flex flex-wrap gap-x-4 text-ink-muted">
 			<span><NutrientIcon kind="protein" />Protein {fmtG(n.protein_g)} g</span>
 			<span><NutrientIcon kind="carbs" />Carbs {fmtG(n.carb_g)} g</span>
 			<span><NutrientIcon kind="fat" />Fat {fmtG(n.fat_g)} g</span>

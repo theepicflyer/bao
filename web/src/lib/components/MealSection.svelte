@@ -1,12 +1,10 @@
 <script lang="ts">
 	import EntryRow from './EntryRow.svelte';
-	import NutrientIcon from './NutrientIcon.svelte';
+	import MacroAmounts from './MacroAmounts.svelte';
 	import { Trace } from 'warren/burrow';
-	import { Count } from 'warren/web';
 	import Icon from '../burrow/Icon.svelte';
 	import type { Entry, Meal, Nutrients } from '../types.ts';
 	import { MEAL_LABEL } from '../types.ts';
-	import { kcal } from '../format.ts';
 	import { wide } from '../state.svelte.ts';
 	import { flip, row } from 'warren/web';
 
@@ -36,9 +34,8 @@
 	<!-- a logged meal: Bao took a bite out of the corner -->
 	<div class="bh-nibble">
 		<section class="bh-card bh-card--nibbled" aria-label={label}>
-			<header class="bh-card__head mk-nibble-head mb-1 justify-start">
+			<header class="bh-card__head mk-nibble-head mb-0">
 				<h2 class="bh-card__title">{label}</h2>
-				<span class="bh-tag"><NutrientIcon kind="energy" /><Count value={subtotal.kcal} format={kcal} /> kcal</span>
 			</header>
 			<!-- a new entry opens its row and rises into place (layout.css); a removed one closes its row; the others move -->
 			<ul class="mk-rows mk-stagger">
@@ -46,16 +43,21 @@
 					<li animate:flip transition:row><EntryRow {entry} onclick={() => onedit(entry)} /></li>
 				{/each}
 			</ul>
-			<div class="mk-card-actions">
+			<!-- the meal's totals, in the rows' columns under a ruled line -->
+			<div class="bh-row bh-row--food bh-row--total">
+				<span class="bh-row__title">Total</span>
+				<MacroAmounts protein={subtotal.protein_g} carbs={subtotal.carb_g} fat={subtotal.fat_g} kcal={subtotal.kcal} />
+			</div>
+			<footer class="bh-card__tray">
+				<button class="bh-btn wn-press bh-btn--secondary bh-btn--sm" aria-label="Add to {label}" onclick={() => onadd(meal)}>
+					<Icon name="plus" size={18} />Add
+				</button>
 				{#if entries.some((e) => e.food_id != null)}
 					<button class="bh-btn wn-press bh-btn--ghost bh-btn--sm" aria-label="Save {label} as a quick meal" onclick={() => onsave(meal)}>
 						<Icon name="bookmark" size={18} />Save meal
 					</button>
 				{/if}
-				<button class="bh-btn wn-press bh-btn--secondary bh-btn--sm" aria-label="Add to {label}" onclick={() => onadd(meal)}>
-					<Icon name="plus" size={18} />Add
-				</button>
-			</div>
+			</footer>
 		</section>
 		<Trace name="crumbs" size={26} class="bh-nibble__crumbs" />
 	</div>

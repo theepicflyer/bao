@@ -591,17 +591,37 @@ export function baoTools(timezone: string): Tool[] {
   return [...agentTools, ...recallTools(timezone), ...mcpTools(timezone)];
 }
 
-/** What the web app shows under a reply for each thing the agent changed. */
+/**
+ * What the web app shows under a reply for each thing the agent changed: a food row for each. Display only: it goes to
+ * the web app with the turn (Warren's serializeTurn), never to the model, so it doesn't touch the cached prompt.
+ */
 export function describeChange(change: { table: string; row: Record<string, unknown> }) {
   const { row } = change;
-  const kcal = typeof row.kcal === "number" ? row.kcal : null;
-  if (change.table !== "foods") return { name: row.name, kcal };
-  // A food's calories per its default serving (else per 100 g) and its aliases.
+  const num = (value: unknown) => (typeof value === "number" ? value : null);
+  const macros = (factor: number) => {
+    const at = (key: string) => {
+      const v = num(row[key]);
+      return v === null ? null : v * factor;
+    };
+    return { kcal: at("kcal"), protein_g: at("protein_g"), carb_g: at("carb_g"), fat_g: at("fat_g") };
+  };
+  if (change.table !== "foods") {
+    // An entry: its own totals and its portion, which the web app words as it does on Today.
+    return {
+      name: row.name,
+      meal: row.meal ?? null,
+      servings: num(row.servings),
+      serving_label: typeof row.serving_label === "string" ? row.serving_label : null,
+      grams: num(row.grams),
+      ...macros(1),
+    };
+  }
+  // A food: its numbers per its default serving (else per 100 g), and its aliases.
   const parse = <T>(value: unknown, fallback: T): T =>
     typeof value === "string" ? (JSON.parse(value) as T) : ((value as T | undefined) ?? fallback);
   const servings = parse<{ label: string; grams: number; default?: boolean }[]>(row.servings, []);
   const aliases = parse<string[]>(row.aliases, []);
   const serving = servings.find((s) => s.default);
-  if (!serving) return { name: row.name, serving: "100 g", kcal, aliases };
-  return { name: row.name, serving: serving.label, kcal: kcal === null ? null : (kcal * serving.grams) / 100, aliases };
+  if (!serving) return { name: row.name, serving: "100 g", aliases, ...macros(1) };
+  return { name: row.name, serving: serving.label, aliases, ...macros(serving.grams / 100) };
 }

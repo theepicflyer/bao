@@ -69,7 +69,7 @@
 {#snippet tile(label: string, value: number | null, of?: string, note?: string, nutrient?: Nutrient)}
 	<div>
 		<div class="label text-ink-muted">{#if nutrient}<NutrientIcon kind={nutrient} size={14} />{/if}{label}</div>
-		<div class="card-title bh-num mt-1"><Count {value} format={kcal} />{#if of}<span class="small text-ink-muted">{` / ${of}`}</span>{/if}</div>
+		<div class="card-title tabular mt-1"><Count {value} format={kcal} />{#if of}<span class="small text-ink-muted">{` / ${of}`}</span>{/if}</div>
 		{#if note}<div class="small text-ink-muted">{note}</div>{/if}
 	</div>
 {/snippet}
@@ -125,8 +125,8 @@
 				{#each parts as p (p.label)}
 					<div>
 						<div class="label"><NutrientIcon kind={p.kind} size={14} />{p.label}</div>
-						<div class="body-strong bh-num mt-0.5"><Count value={(p.kcal / total) * 100} />%</div>
-						{#if targetTotal > 0}<div class="small bh-num text-ink-muted">target {Math.round((p.target / targetTotal) * 100)}%</div>{/if}
+						<div class="body-strong tabular mt-0.5"><Count value={(p.kcal / total) * 100} />%</div>
+						{#if targetTotal > 0}<div class="small tabular text-ink-muted">target {Math.round((p.target / targetTotal) * 100)}%</div>{/if}
 					</div>
 				{/each}
 			</div>
@@ -223,7 +223,7 @@
 						{#snippet aside()}{#if d.entries}<NutrientIcon kind="energy" />{kcal(d.kcal)} kcal{/if}{/snippet}
 						<a href="/day/{d.date}" class="bh-card wn-press block py-3 no-underline hover:bg-surface-sunk">
 							{#if d.entries}
-								<span class="small block text-ink-muted"><MacroAmounts protein={d.protein_g} carbs={d.carb_g} fat={d.fat_g} unit=" g" /></span>
+								<span class="small block text-ink-muted"><MacroAmounts protein={d.protein_g} carbs={d.carb_g} fat={d.fat_g} /></span>
 								<span class="small mt-1 flex items-center gap-1 font-semibold text-sky-text">
 									{d.entries} item{d.entries === 1 ? '' : 's'}<Icon name="chevron-right" size={16} />
 								</span>
