@@ -106,11 +106,15 @@ export function plural(word: string): string {
 
 /**
  * A counted serving as a number and its word: "1 bowl", "2 pieces", "2 regular cups", "3 scoops (serving spoon)",
- * "2 cans/cartons (500ml)". The label's own count multiplies in ("3 oz" twice is "6 oz"); what follows a bracket or
- * comma describes the serving and stays as it is.
+ * "2 cans/cartons". The label's own count multiplies in ("3 oz" twice is "6 oz"). A bracket holding only a size
+ * ("(250ml)", "(8 fl oz)") is dropped, so a count is never followed by an amount; any other bracket or comma
+ * describes the serving and stays as it is.
  */
 export function countText(servings: number, label: string): string {
-	const clean = label.replace(/\((s|es)\)/g, '').trim();
+	const clean = label
+		.replace(/\((s|es)\)/g, '')
+		.replace(/\s*\(\s*\d+(?:\.\d+)?\s*(?:ml|l|g|kg|mg|oz|fl\.? ?oz)\s*\)/gi, '')
+		.trim();
 	const m = /^(\d+(?:\.\d+)?|one|an?)\s+(.*)$/i.exec(clean);
 	const each = m ? (/^\d/.test(m[1]) ? Number(m[1]) : 1) : 1;
 	const unit = m ? m[2] : clean;
