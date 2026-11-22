@@ -34,7 +34,7 @@
 			{@const w = week[i]}
 			<div class="text-ink-muted">{w.name}s</div>
 			{#if w.avg != null}
-				<div class="body-strong bh-num"><NutrientIcon kind="energy" />{kcal(w.avg)} kcal</div>
+				<div class="body-strong tabular"><NutrientIcon kind="energy" />{kcal(w.avg)} kcal</div>
 				<div class="text-ink-muted">average of {w.count} day{w.count === 1 ? '' : 's'}</div>
 			{:else}
 				<div class="body-strong">Not logged</div>

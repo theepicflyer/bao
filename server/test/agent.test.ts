@@ -26,7 +26,13 @@ test("a turn logs through the tools, and the next turn replays it byte for byte"
   const events = await turn(bao, alice, "kopi c for breakfast");
   const done = events.at(-1);
   expect(done.turn.reply_text).toBe("Logged kopi C.");
-  expect(done.turn.changes).toEqual([{ table: "entries", action: "create", row_id: 1, name: "Kopi C", kcal: 107.5 }]);
+  // what the web app shows under the reply: a food row (display only, never sent to the model)
+  expect(done.turn.changes).toEqual([
+    {
+      table: "entries", action: "create", row_id: 1, name: "Kopi C", meal: "breakfast",
+      servings: 1, serving_label: "cup", grams: 250, kcal: 107.5, protein_g: 3, carb_g: 17.5, fat_g: 2.75,
+    },
+  ]);
   expect(events.find((e) => e.type === "changed")).toEqual({ type: "changed", touched: [DAY] });
 
   const first = claude.requests[0]!;
@@ -101,7 +107,10 @@ test("household foods are sent once per thread, and again only when they change"
 
   const saved = (await turn(bao, alice, "save this milk", { threadId: thread })).at(-1);
   expect(saved.turn.changes).toEqual([
-    { table: "foods", action: "create", row_id: expect.any(Number), name: "Test Soy Milk", serving: "glass", kcal: 116, aliases: ["test soy milk"] },
+    {
+      table: "foods", action: "create", row_id: expect.any(Number), name: "Test Soy Milk", serving: "glass", aliases: ["test soy milk"],
+      kcal: 116, protein_g: null, carb_g: null, fat_g: null,
+    },
   ]);
   await turn(bao, alice, "thanks", { threadId: thread });
   expect(context(4)).toContain("Household foods (Ours):\n- #");

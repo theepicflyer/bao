@@ -1,4 +1,5 @@
 <script lang="ts">
+	import FoodRow from './FoodRow.svelte';
 	import Sheet from './Sheet.svelte';
 	import NutrientIcon from './NutrientIcon.svelte';
 	import PortionPicker from './PortionPicker.svelte';
@@ -8,7 +9,7 @@
 	import { MEAL_LABEL, MEAL_TRACE, type Entry, type Food, type Meal, type Portion, type Quick, type QuickItem, type SavedMeal } from '../types.ts';
 	import { Loader, Trace } from 'warren/burrow';
 	import { del, get, post } from 'warren/web';
-	import { initialPortion, kcal, portionPayload, portionText, servingKcal } from '../format.ts';
+	import { foodPortion, foodTitle, initialPortion, kcal, portionPayload, portionText } from '../format.ts';
 	import { toasts } from '../state.svelte.ts';
 	import { flip, fly, haptic, row } from 'warren/web';
 
@@ -168,14 +169,20 @@
 
 {#snippet quickRow(item: QuickItem, remove?: () => void)}
 	<li class="flex items-center" out:row>
-		<button class="bh-row mk-row-btn wn-press min-w-0 flex-1" onclick={() => addQuick(item)} disabled={busy}>
-			<span class="bh-row__tile"><Trace name={MEAL_TRACE[meal]} size={30} /></span>
-			<span class="bh-row__text">
-				<span class="bh-row__title">{item.name}</span>
-				<span class="bh-row__sub truncate">{portionText(item.servings, item.serving_label, item.grams)}</span>
-			</span>
-			<span class="bh-row__amount"><NutrientIcon kind="energy" labelled />{kcal(item.kcal)}</span>
-		</button>
+		<div class="min-w-0 flex-1">
+			<FoodRow
+				name={item.name}
+				portion={portionText(item.servings, item.serving_label, item.grams)}
+				protein={item.protein_g}
+				carbs={item.carb_g}
+				fat={item.fat_g}
+				kcal={item.kcal}
+				onclick={() => addQuick(item)}
+				disabled={busy}
+			>
+				{#snippet tile()}<Trace name={MEAL_TRACE[meal]} size={24} />{/snippet}
+			</FoodRow>
+		</div>
 		{#if remove}
 			<button class="bh-btn wn-press bh-btn--ghost bh-btn--sm bh-btn--icon ml-1 shrink-0 text-ink-muted" aria-label="Remove {item.name}" onclick={remove}>
 				<Icon name="close" size={16} />
@@ -227,14 +234,19 @@
 			{:else}
 				<ul class="mk-rows mk-stagger">
 					{#each results as food (food.id)}
+						{@const f = foodPortion(food)}
 						<li animate:flip>
-							<button class="bh-row mk-row-btn wn-press" onclick={() => choose(food)}>
-								<span class="bh-row__text">
-									<span class="bh-row__title">{food.name}</span>
-									<span class="bh-row__sub">{#if food.brand}<span class="truncate">{food.brand}</span>{/if}<span><NutrientIcon kind="energy" />{servingKcal(food)}</span></span>
-								</span>
-								<SourceBadge source={food.source} />
-							</button>
+							<FoodRow
+								name={foodTitle(food)}
+								portion={f.portion}
+								protein={f.n.protein_g}
+								carbs={f.n.carb_g}
+								fat={f.n.fat_g}
+								kcal={f.n.kcal}
+								onclick={() => choose(food)}
+							>
+								{#snippet end()}<SourceBadge source={food.source} />{/snippet}
+							</FoodRow>
 						</li>
 					{/each}
 				</ul>

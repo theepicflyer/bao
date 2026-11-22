@@ -130,7 +130,7 @@ textarea {
 
 /* Bao's own pieces, built from Burrow tokens. */
 @layer components {
-	.bh-num,
+	/* Burrow's .bh-num is the macro cell now (Macros), so Bao's tabular figures use .tabular. */
 	.tabular {
 		font-variant-numeric: tabular-nums;
 	}
@@ -296,17 +296,47 @@ textarea {
 		vertical-align: -0.22em;
 	}
 
-	/* MacroAmounts: protein, carbs and fat after their symbols, inline so it sits in a line of text */
-	.mk-macros > span {
-		white-space: nowrap;
+	/* Burrow's Macros cells draw their own 4px gap after the symbol. */
+	.bh-num .mk-nutrient {
+		margin: 0;
+		vertical-align: 0;
 	}
 
-	.mk-macros > span + span {
-		margin-left: 0.5em;
+	/* Food rows in a list (FoodRow): the hairline between rows starts after the tile, so it is drawn on the
+	   body, which holds the row's padding. */
+	.mk-rows > li + li:has(.mk-food) {
+		border-top: 0;
 	}
 
-	.mk-macros .mk-nutrient {
-		margin-right: 0.1em;
+	.mk-rows .mk-food {
+		padding-block: 0;
+	}
+
+	.mk-rows .mk-food .bh-row__tile {
+		margin-top: 10px;
+	}
+
+	.mk-rows .mk-food .bh-row__body {
+		padding: 10px 0;
+	}
+
+	.mk-rows > li + li .mk-food .bh-row__body {
+		border-top: var(--border-hair) solid var(--line);
+	}
+
+	.mk-food .bh-row__title {
+		min-width: 0;
+	}
+
+	/* a linked food row in the chat's change card keeps the press area's inset (Burrow resets row padding there) */
+	.bh-changes__rows .mk-row-btn {
+		padding-inline: var(--space-2);
+	}
+
+	.mk-food .mk-tile-photo {
+		width: 100%;
+		height: 100%;
+		border-radius: 0;
 	}
 
 	/* A well: tracks, previews and notes sunk into a card. */
@@ -353,7 +383,7 @@ textarea {
 		object-fit: cover;
 	}
 
-	/* Small sticker badges: food sources, "est." */
+	/* Small sticker badges: food sources */
 	.mk-badge {
 		display: inline-flex;
 		align-items: center;
@@ -393,9 +423,9 @@ textarea {
 		color: var(--ink-muted);
 	}
 
-	/* Logged meals keep the bitten corner clear. */
+	/* Logged meals keep the bitten corner clear: the top-right 56px stays empty. */
 	.mk-nibble-head {
-		padding-right: 44px;
+		padding-right: 56px;
 	}
 
 	.mk-card-actions {
@@ -507,7 +537,7 @@ textarea {
 		outline-offset: 2px;
 	}
 
-	/* Toasts come and go with warren/web's transitions (Toasts.svelte) instead of Burrow's pop. */
+	/* The toast comes and goes with Toasts.svelte's own transitions instead of Burrow's pop. */
 	.mk-toast {
 		animation: none;
 	}
@@ -573,7 +603,8 @@ textarea {
    is imported above; +layout.svelte runs the screen changes). Everything that moves sits behind no-preference: reduced motion gets none of it. */
 @layer components {
 	/* Widths through custom properties, so the motion below can start them at zero. */
-	.bh-meter__fill {
+	.bh-meter__fill,
+	.bh-meter__extra {
 		width: var(--w);
 	}
 
@@ -763,14 +794,18 @@ textarea {
 			}
 		}
 
-		/* Meters fill from empty, the sunflower at the end rolling along. */
+		/* Meters fill from empty, the sunflower at the end rolling along; past the target the stripes follow on. */
+		.bh-meter__extra {
+			transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s;
+		}
+
 		.bh-meter__cap svg {
 			rotate: calc(var(--p) * 1.5turn);
 			transition: rotate 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 		}
 
 		@starting-style {
-			:is(.bh-meter__fill, .meter-split):not(.mk-returned *) {
+			:is(.bh-meter__fill, .bh-meter__extra):not(.mk-returned *) {
 				width: 0;
 			}
 

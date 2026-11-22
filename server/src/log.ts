@@ -314,6 +314,9 @@ export interface QuickItem {
   servings: number | null;
   grams: number | null;
   kcal: number | null;
+  protein_g: number | null;
+  carb_g: number | null;
+  fat_g: number | null;
 }
 
 function quickItem(e: Entry): QuickItem {
@@ -324,6 +327,9 @@ function quickItem(e: Entry): QuickItem {
     servings: e.servings,
     grams: e.serving_label ? null : e.grams,
     kcal: e.kcal,
+    protein_g: e.protein_g,
+    carb_g: e.carb_g,
+    fat_g: e.fat_g,
   };
 }
 
@@ -395,6 +401,7 @@ export function quickItems(db: Db, user: User, day: string, meal?: string | null
     .all();
   for (const { pin, food } of rows) {
     const portion = foodSvc.resolvePortion(food, { servings: pin.servings, serving: pin.serving_label, grams: pin.grams });
+    const n = foodSvc.scale(food, portion.grams);
     pinned.push({
       id: pin.id,
       food_id: food.id,
@@ -402,7 +409,10 @@ export function quickItems(db: Db, user: User, day: string, meal?: string | null
       serving_label: portion.serving_label,
       servings: portion.servings,
       grams: pin.grams,
-      kcal: foodSvc.scale(food, portion.grams).kcal,
+      kcal: n.kcal,
+      protein_g: n.protein_g,
+      carb_g: n.carb_g,
+      fat_g: n.fat_g,
     });
   }
 

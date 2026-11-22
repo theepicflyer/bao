@@ -9,8 +9,8 @@ or send it a photo of your plate. Bao logs it straight away, and you can correct
 You host it yourself. It runs as one Docker container, and you install it on your phone from the browser.
 
 <p>
-  <img src="docs/screenshots/today.png" width="200" alt="Today: Bao's meadow, the day's calories as a sunflower, macros against targets, and the button to message Bao">
-  <img src="docs/screenshots/assistant.png" width="200" alt="The chat with Bao: the day's earlier sessions, dinner logged from a text message, each reply with an undo and a thumbs up or down">
+  <img src="docs/screenshots/today.png" width="200" alt="Today: macros against targets, fat past its target, and each meal's foods with their protein, carbs, fat and calories and a total">
+  <img src="docs/screenshots/assistant.png" width="200" alt="The chat with Bao: under each reply, the foods it logged, saved or removed, with an undo and a thumbs up or down">
   <img src="docs/screenshots/add.png" width="200" alt="Adding to a meal: same as yesterday, pinned foods, saved meals and frequent foods">
   <img src="docs/screenshots/history.png" width="200" alt="History: averages, and daily calories against the target">
 </p>

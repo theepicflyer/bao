@@ -1,12 +1,12 @@
 <script lang="ts">
-	import NutrientIcon from '#lib/components/NutrientIcon.svelte';
+	import FoodRow from '#lib/components/FoodRow.svelte';
 	import SourceBadge from '#lib/components/SourceBadge.svelte';
 	import EmptyState from '#lib/burrow/EmptyState.svelte';
 	import Icon from '#lib/burrow/Icon.svelte';
 	import TrailPath from '#lib/burrow/TrailPath.svelte';
 	import { Habitat, Loader } from 'warren/burrow';
 	import { flip, get, loaded, preload } from 'warren/web';
-	import { servingKcal } from '#lib/format.ts';
+	import { foodPortion, foodTitle } from '#lib/format.ts';
 	import type { Food } from '#lib/types.ts';
 	import { columns } from '#lib/state.svelte.ts';
 
@@ -42,18 +42,20 @@
 <svelte:head><title>Foods · Bao</title></svelte:head>
 
 {#snippet foodRow(food: Food)}
+	{@const f = foodPortion(food)}
 	<!-- a finger on the row starts loading the food, so it's there when the screen slides in -->
-	<a href="/foods/{food.id}" class="bh-row mk-row-btn wn-press" onpointerdown={() => preload(`/api/foods/${food.id}`)}>
-		<span class="bh-row__text">
-			<span class="bh-row__title">{food.name}</span>
-			<span class="bh-row__sub">
-				{#if food.brand}<span class="truncate">{food.brand}</span>{/if}
-				<span><NutrientIcon kind="energy" />{servingKcal(food)}</span>
-				{#each food.aliases as a (a)}<span class="bh-tag">“{a}”</span>{/each}
-			</span>
-		</span>
-		<SourceBadge source={food.source} />
-	</a>
+	<FoodRow
+		name={foodTitle(food)}
+		portion={f.portion}
+		protein={f.n.protein_g}
+		carbs={f.n.carb_g}
+		fat={f.n.fat_g}
+		kcal={f.n.kcal}
+		href="/foods/{food.id}"
+		onpointerdown={() => preload(`/api/foods/${food.id}`)}
+	>
+		{#snippet end()}<SourceBadge source={food.source} />{/snippet}
+	</FoodRow>
 {/snippet}
 
 <!-- Bao's pantry: the household's own foods, and every reference food to search -->

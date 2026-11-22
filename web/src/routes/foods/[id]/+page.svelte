@@ -150,7 +150,7 @@
 								<th scope="row" class="py-2.5 text-left font-normal text-ink-muted">
 									<span class="inline-block w-[22px]">{#if symbol}<NutrientIcon kind={symbol} />{/if}</span>{r.label}
 								</th>
-								<td class="bh-num py-2.5 text-right font-semibold">
+								<td class="tabular py-2.5 text-right font-semibold">
 									{food.per_100g[r.key] == null ? '–' : `${Math.round((food.per_100g[r.key] ?? 0) * 10) / 10} ${r.unit}`}
 								</td>
 							</tr>

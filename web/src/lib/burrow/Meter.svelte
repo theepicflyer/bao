@@ -3,6 +3,9 @@
 	import { Count } from 'warren/web';
 	import { Trace, type TraceName } from 'warren/burrow';
 
+	/* Burrow's Meter. Every meter shares one scale, 0 to 125% of its target, with the target as a tick at 80%; past it
+	   the fill carries on in its own colour, striped, so a meter over target looks like the others. The flag ("6 g
+	   over") follows the label; "value / target" keeps its own column on the right. */
 	let {
 		label,
 		value,
@@ -20,27 +23,29 @@
 		color?: string;
 		cap?: TraceName;
 		nutrient?: Nutrient;
-		/** Going past the target is fine (protein): the overflow keeps the nutrient's colour and the note isn't a warning. */
+		/** Going past the target is fine (protein): the flag isn't a warning. */
 		overIsGood?: boolean;
 	} = $props();
 
+	const HEADROOM = 1.25;
 	const target = $derived(max != null && max > 0 ? max : null);
+	const v = $derived(Math.max(0, value || 0));
 	// over only once the numbers shown differ, so 65.4 of 65 g doesn't read "0 g over"
-	const over = $derived(target != null && Math.round(value) > Math.round(target));
-	// Over target the track stretches to the value, so the target sits part way along and the overflow shows how far past it is.
-	const scale = $derived(target ? (over ? value : target) : 1);
-	const pct = $derived(target ? Math.max(0, Math.min(1, value / scale)) : 0);
-	const targetPct = $derived(target ? target / scale : 1);
+	const over = $derived(target != null && Math.round(v) > Math.round(target));
+	const end = $derived(target ? target * HEADROOM : 1);
+	const base = $derived(target ? Math.min(v, target) / end : 0);
+	const extra = $derived(target ? Math.max(0, Math.min(v, end) - target) / end : 0);
+	const at = 1 / HEADROOM;
 </script>
 
-<div class="bh-meter {over ? 'is-over' : ''}">
+<div class="bh-meter {over ? 'is-over' : ''}" style="--meter: var(--{color}); --meter-soft: var(--{color}-soft)">
 	<div class="bh-meter__top">
-		<span class="bh-meter__label">{#if nutrient}<NutrientIcon kind={nutrient} size={14} />{/if}{label}</span>
-		<span class="bh-meter__value"
-			><Count {value} />{target ? ` / ${Math.round(target)}` : ''} {unit}{#if over && target}<span class="bh-tag {overIsGood ? 'bh-tag--in' : 'bh-tag--over'}"
-					>{Math.round(value - target)} {unit} over</span
+		<span class="bh-meter__label"
+			>{#if nutrient}<NutrientIcon kind={nutrient} size={14} />{/if}{label}{#if over && target}<span
+					class="bh-tag {overIsGood ? 'bh-tag--in' : 'bh-tag--over'}">{Math.round(v - target)} {unit} over</span
 				>{:else if !target}<span class="bh-tag">No target</span>{/if}</span
 		>
+		<span class="bh-meter__value"><Count value={v} />{target ? ` / ${Math.round(target)}` : ''} {unit}</span>
 	</div>
 	<div class="bh-meter__rail">
 		<div
@@ -49,50 +54,19 @@
 			aria-label={label}
 			aria-valuemin={0}
 			aria-valuemax={target ?? undefined}
-			aria-valuenow={Math.round(value)}
+			aria-valuenow={Math.round(v)}
 		>
-			{#if over}
-				<div class="meter-split" style="--w: {pct * 100}%">
-					<div class="bh-meter__fill" style="--w: {(targetPct / pct) * 100}%; background: var(--{color})"></div>
-					<div class="bh-meter__fill meter-overflow" style="background: var(--{overIsGood ? color : 'tomato'})"></div>
-				</div>
-			{:else}
-				<div class="bh-meter__fill" style="--w: {pct * 100}%; background: var(--{color})"></div>
+			<div class="bh-meter__fill" style="--w: {base * 100}%"></div>
+			{#if extra > 0}
+				<div class="bh-meter__extra" style="left: {at * 100}%; --w: {extra * 100}%"></div>
 			{/if}
 		</div>
-		{#if over}
-			<span class="meter-target" style="left: {targetPct * 100}%" aria-hidden="true"></span>
+		{#if target}
+			<span class="bh-meter__tick" style="left: {at * 100}%" aria-hidden="true"></span>
 		{/if}
 		{#if cap && target}
-			<!-- the sunflower rolls along to the end of the fill -->
-			<Trace name={cap} size={24} class="bh-meter__cap" style="--w: {pct * 100}%; --p: {pct}" />
+			<!-- the sunflower rides the end of the fill -->
+			<Trace name={cap} size={24} class="bh-meter__cap" style="--w: {(base + extra) * 100}%; --p: {base + extra}" />
 		{/if}
 	</div>
 </div>
-
-<style>
-	.meter-split {
-		display: flex;
-		width: var(--w);
-		height: 100%;
-		transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-	}
-	.meter-split > :global(.bh-meter__fill:first-child) {
-		flex: none;
-		border-radius: var(--radius-pill) 0 0 var(--radius-pill);
-	}
-	.meter-overflow {
-		flex: 1;
-		border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
-	}
-	/* where the target is, once the bar runs past it */
-	.meter-target {
-		position: absolute;
-		top: -3px;
-		bottom: -3px;
-		width: 2px;
-		margin-left: -1px;
-		border-radius: 1px;
-		background: var(--outline);
-	}
-</style>
