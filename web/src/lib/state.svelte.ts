@@ -1,5 +1,5 @@
 import { MediaQuery } from 'svelte/reactivity';
-import { Session, Toasts, type Toast, type ToastAction } from 'warren/web';
+import { Session, Toasts } from 'warren/web';
 import type { Me } from './types.ts';
 import type { Character, Mood } from 'warren/burrow';
 
@@ -22,22 +22,5 @@ export interface ToastLook {
 	mood?: Mood;
 }
 
-/** How long a toast stays, not counting while a finger holds it. */
-export const TOAST_MS = 5000;
-
-/**
- * One toast at a time, in the nav's place: a new one replaces the one on show. Toasts.svelte times it (5 s, paused
- * while held), so `show` sets no timer of its own and ignores `ms`.
- */
-class BaoToasts extends Toasts<ToastLook> {
-	#next = 0;
-
-	override show(message: string, options: Partial<ToastLook> & { action?: ToastAction | null; ms?: number } = {}): number {
-		const { action = null, ms: _ms, ...look } = options;
-		const id = ++this.#next;
-		this.items = [{ ...look, id, message, action } as Toast<ToastLook>];
-		return id;
-	}
-}
-
-export const toasts = new BaoToasts({ defaults: {}, onError: { tone: 'error', character: 'kayu', mood: 'worried' } });
+/** One toast at a time, in the nav's place: a new one replaces the one on show, and warren/burrow's `Toast` times it (5 s, stopped while held). */
+export const toasts = new Toasts<ToastLook>({ defaults: {}, onError: { tone: 'error', character: 'kayu', mood: 'worried' }, max: 1, timed: false });

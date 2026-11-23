@@ -537,11 +537,6 @@ textarea {
 		outline-offset: 2px;
 	}
 
-	/* The toast comes and goes with Toasts.svelte's own transitions instead of Burrow's pop. */
-	.mk-toast {
-		animation: none;
-	}
-
 	/* Between one Bao session and the next in the day's chat. */
 	.mk-session-break {
 		border: 0;

@@ -28,6 +28,6 @@
 		"#lib/*": "./src/lib/*"
 	},
 	"dependencies": {
-		"warren": "github:theepicflyer/warren#40ec628957faaf2a033e194edcef96dbe58d45d5"
+		"warren": "github:theepicflyer/warren#5520dd91fc89bbe64b1ab131f9d648096bb33b1c"
 	}
 }
