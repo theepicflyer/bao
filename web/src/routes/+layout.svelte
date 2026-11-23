@@ -5,11 +5,10 @@
 	import './layout.css';
 	import { page } from '$app/state';
 	import { afterNavigate, goto, onNavigate } from '$app/navigation';
-	import { Loader } from 'warren/burrow';
+	import { Loader, Toast } from 'warren/burrow';
 	import { configureApi, configureData, direction, pageTransition, swipeBack } from 'warren/web';
 	import BottomNav from '#lib/components/BottomNav.svelte';
 	import SideNav from '#lib/components/SideNav.svelte';
-	import Toasts from '#lib/components/Toasts.svelte';
 	import { TABS, isTab } from '#lib/nav.ts';
 	import { session, toasts } from '#lib/state.svelte.ts';
 	import { onMount } from 'svelte';
@@ -68,7 +67,11 @@
 	});
 </script>
 
-<Toasts />
+<!-- the one toast, in the docked nav's place (BottomNav slides away underneath); beside the rail, at the foot of the content column -->
+<Toast
+	{toasts}
+	style="left: {isLogin ? '0px' : 'var(--rail-w)'}; right: var(--fold-right); padding: 0 16px calc(env(safe-area-inset-bottom) + var(--nav-gap))"
+/>
 
 {#if isLogin}
 	{@render children()}
